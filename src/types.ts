@@ -22,6 +22,21 @@ export type Piece = {
 
 export type Ratio = "9:16" | "4:5" | "1:1";
 
+export type Shell = {
+  light: boolean;
+  page: string;
+  ink: string;
+  soft: string;
+  faint: string;
+  accent: string;
+  accentInk: string;
+  line: string;
+  field: string;
+  wash: string;
+  danger: string;
+  glow: string;
+};
+
 export type Theme = {
   id: string;
   name: string;
@@ -31,4 +46,5 @@ export type Theme = {
   motif: string;
   rule: string;
   glow: string;
+  shell: Shell;
 };

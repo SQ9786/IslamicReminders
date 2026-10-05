@@ -157,28 +157,28 @@ export function Stage({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex rounded-full border border-white/10 p-1">
+        <div className="flex rounded-full border border-[var(--line)] p-1">
           {ratios.map((item) => (
             <button
               key={item}
               type="button"
               onClick={() => onRatio(item)}
               className={`rounded-full px-3 py-1 text-xs tracking-wide ${
-                ratio === item ? "bg-[#c4a574] text-[#231c16]" : "text-[#c8c0b4]"
+                ratio === item ? "bg-[var(--accent)] text-[var(--accent-ink)]" : "text-[var(--soft)]"
               }`}
             >
               {item}
             </button>
           ))}
         </div>
-        <div className="flex rounded-full border border-white/10 p-1">
+        <div className="flex rounded-full border border-[var(--line)] p-1">
           {durations.map((seconds) => (
             <button
               key={seconds}
               type="button"
               onClick={() => onDuration(seconds)}
               className={`rounded-full px-3 py-1 text-xs ${
-                duration === seconds ? "bg-white/10 text-[#f3efe6]" : "text-[#c8c0b4]"
+                duration === seconds ? "bg-[var(--wash)] text-[var(--ink)]" : "text-[var(--soft)]"
               }`}
             >
               {seconds}s
@@ -190,13 +190,13 @@ export function Stage({
       <div className="relative mx-auto w-full max-w-[380px]">
         {!fontsReady && (
           <div
-            className={`absolute inset-0 animate-pulse rounded-[1.4rem] bg-white/[0.04] ${
+            className={`absolute inset-0 animate-pulse rounded-[1.4rem] bg-[var(--wash)] ${
               ratio === "9:16" ? "aspect-[9/16]" : ratio === "4:5" ? "aspect-[4/5]" : "aspect-square"
             }`}
           />
         )}
         <div
-          className={`overflow-hidden rounded-[1.4rem] shadow-[0_30px_70px_-24px_rgba(20,16,12,0.85)] ring-1 ring-white/10 transition-opacity duration-500 ${
+          className={`overflow-hidden rounded-[1.4rem] shadow-[0_30px_70px_-24px_rgba(20,16,12,0.45)] ring-1 ring-[var(--line)] transition-opacity duration-500 ${
             fontsReady ? "opacity-100" : "opacity-0"
           }`}
         >
@@ -204,9 +204,9 @@ export function Stage({
         </div>
       </div>
 
-      <div className="mx-auto h-px w-full max-w-[380px] bg-white/10">
+      <div className="mx-auto h-px w-full max-w-[380px] bg-[var(--line)]">
         <div
-          className="h-px origin-left bg-[#c4a574]"
+          className="h-px origin-left bg-[var(--accent)]"
           style={{ transform: `scaleX(${progress})` }}
         />
       </div>
@@ -219,7 +219,7 @@ export function Stage({
             setPlaying((value) => !value);
           }}
           disabled={!canExport || recording}
-          className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-sm text-[#f3efe6] active:scale-[0.98] disabled:opacity-40"
+          className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-4 py-2 text-sm text-[var(--ink)] active:scale-[0.98] disabled:opacity-40"
         >
           {playing ? <Pause size={16} weight="regular" /> : <Play size={16} weight="regular" />}
           {playing ? "Stop" : "Play reel"}
@@ -233,7 +233,7 @@ export function Stage({
             if (canvas) downloadStill(canvas, `mihrab-${slug}.png`);
           }}
           disabled={!canExport || recording}
-          className="inline-flex items-center gap-2 rounded-full bg-[#c4a574] px-4 py-2 text-sm text-[#231c16] disabled:opacity-40"
+          className="inline-flex items-center gap-2 rounded-full bg-[var(--accent)] px-4 py-2 text-sm text-[var(--accent-ink)] disabled:opacity-40"
         >
           <ImageSquare size={16} weight="regular" />
           Still
@@ -242,14 +242,14 @@ export function Stage({
         <MagneticButton
           onClick={onRecord}
           disabled={!canExport || recording}
-          className="inline-flex items-center gap-2 rounded-full border border-[#c4a574]/50 px-4 py-2 text-sm text-[#f3efe6] disabled:opacity-40"
+          className="inline-flex items-center gap-2 rounded-full border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] px-4 py-2 text-sm text-[var(--ink)] disabled:opacity-40"
         >
           <FilmStrip size={16} weight="regular" />
           {recording ? "Recording…" : "Reel"}
         </MagneticButton>
       </div>
 
-      <div className="mx-auto flex w-full max-w-[380px] gap-4 text-xs text-[#c8c0b4]">
+      <div className="mx-auto flex w-full max-w-[380px] gap-4 text-xs text-[var(--soft)]">
         <label className="inline-flex items-center gap-2">
           <input
             type="checkbox"
@@ -269,16 +269,16 @@ export function Stage({
       </div>
 
       {error && (
-        <p className="mx-auto max-w-[380px] text-sm text-[#e2b8a4]" role="alert">
+        <p className="mx-auto max-w-[380px] text-sm text-[var(--danger)]" role="alert">
           {error}
         </p>
       )}
       {!canExport && (
-        <p className="mx-auto max-w-[380px] text-sm text-[#c8c0b4]">
+        <p className="mx-auto max-w-[380px] text-sm text-[var(--soft)]">
           Write the English line before you export.
         </p>
       )}
-      <p className="mx-auto max-w-[380px] text-xs leading-relaxed text-[#9c9488]">
+      <p className="mx-auto max-w-[380px] text-xs leading-relaxed text-[var(--faint)]">
         The reel is silent. Add recitation or a nasheed in your editor before you post.
       </p>
     </div>
