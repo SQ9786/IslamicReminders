@@ -1,0 +1,295 @@
+import { useEffect, useRef, useState } from "react";
+import { DownloadSimple, FilmStrip, ImageSquare, Pause, Play } from "@phosphor-icons/react";
+import type { Piece, Ratio, Theme } from "../types";
+import { drawReminder, ratioSize, type DrawSpec } from "../lib/drawReminder";
+import { downloadStill, fileSlug, recordReel } from "../lib/exportMedia";
+import { MagneticButton } from "./MagneticButton";
+
+type Props = {
+  piece: Piece;
+  theme: Theme;
+  ratio: Ratio;
+  duration: number;
+  useHook: boolean;
+  showMark: boolean;
+  onRatio: (ratio: Ratio) => void;
+  onDuration: (seconds: number) => void;
+  onHook: (value: boolean) => void;
+  onMark: (value: boolean) => void;
+};
+
+const ratios: Ratio[] = ["9:16", "4:5", "1:1"];
+const durations = [6, 9, 12];
+
+export function Stage({
+  piece,
+  theme,
+  ratio,
+  duration,
+  useHook,
+  showMark,
+  onRatio,
+  onDuration,
+  onHook,
+  onMark,
+}: Props) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const lock = useRef(false);
+  const [fontsReady, setFontsReady] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [progress, setProgress] = useState(1);
+  const [error, setError] = useState("");
+
+  const signature = [
+    piece.kind,
+    piece.topic,
+    piece.arabic,
+    piece.english,
+    piece.source,
+    piece.hook,
+    theme.id,
+    ratio,
+    useHook,
+    showMark,
+    fontsReady,
+  ].join("|");
+
+  function spec(): DrawSpec {
+    return { piece, theme, ratio, useHook, showMark };
+  }
+
+  function paint(t: number) {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const size = ratioSize[ratio];
+    if (canvas.width !== size.w || canvas.height !== size.h) {
+      canvas.width = size.w;
+      canvas.height = size.h;
+    }
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    drawReminder(ctx, spec(), t);
+  }
+
+  useEffect(() => {
+    let live = true;
+    const ready = Promise.race([
+      document.fonts.ready.then(async () => {
+        await document.fonts.load("700 64px Amiri");
+        await document.fonts.load("600 64px Fraunces");
+        await document.fonts.load("500 32px Outfit");
+      }),
+      new Promise((resolve) => window.setTimeout(resolve, 2800)),
+    ]);
+    ready.then(() => {
+      if (live) setFontsReady(true);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (lock.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const size = ratioSize[ratio];
+    if (canvas.width !== size.w || canvas.height !== size.h) {
+      canvas.width = size.w;
+      canvas.height = size.h;
+    }
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const current = spec();
+
+    if (!playing) {
+      drawReminder(ctx, current, 1);
+      setProgress(1);
+      return;
+    }
+
+    const start = performance.now();
+    let frame = 0;
+    const loop = (now: number) => {
+      const t = Math.min(1, (now - start) / (duration * 1000));
+      drawReminder(ctx, current, t);
+      setProgress(t);
+      if (t < 1) frame = requestAnimationFrame(loop);
+      else setPlaying(false);
+    };
+    frame = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(frame);
+    // spec() reads the latest piece through signature
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playing, duration, signature]);
+
+  const canExport = Boolean(piece.english.trim());
+  const slug = fileSlug(piece.source || piece.english.slice(0, 24));
+
+  async function onRecord() {
+    const canvas = canvasRef.current;
+    if (!canvas || !canExport || recording) return;
+    setError("");
+    setPlaying(false);
+    lock.current = true;
+    setRecording(true);
+    try {
+      const blob = await recordReel(
+        canvas,
+        (t) => {
+          paint(t);
+          setProgress(t);
+        },
+        duration * 1000,
+      );
+      downloadBlobSafe(blob, `mihrab-${slug}.webm`);
+    } catch {
+      setError("This browser cannot record a reel. Download the still, then add sound in your editor.");
+    } finally {
+      lock.current = false;
+      setRecording(false);
+      paint(1);
+      setProgress(1);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex rounded-full border border-white/10 p-1">
+          {ratios.map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => onRatio(item)}
+              className={`rounded-full px-3 py-1 text-xs tracking-wide ${
+                ratio === item ? "bg-[#c4a574] text-[#231c16]" : "text-[#c8c0b4]"
+              }`}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+        <div className="flex rounded-full border border-white/10 p-1">
+          {durations.map((seconds) => (
+            <button
+              key={seconds}
+              type="button"
+              onClick={() => onDuration(seconds)}
+              className={`rounded-full px-3 py-1 text-xs ${
+                duration === seconds ? "bg-white/10 text-[#f3efe6]" : "text-[#c8c0b4]"
+              }`}
+            >
+              {seconds}s
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="relative mx-auto w-full max-w-[380px]">
+        {!fontsReady && (
+          <div
+            className={`absolute inset-0 animate-pulse rounded-[1.4rem] bg-white/[0.04] ${
+              ratio === "9:16" ? "aspect-[9/16]" : ratio === "4:5" ? "aspect-[4/5]" : "aspect-square"
+            }`}
+          />
+        )}
+        <div
+          className={`overflow-hidden rounded-[1.4rem] shadow-[0_30px_70px_-24px_rgba(20,16,12,0.85)] ring-1 ring-white/10 transition-opacity duration-500 ${
+            fontsReady ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          <canvas ref={canvasRef} className="block h-auto w-full" />
+        </div>
+      </div>
+
+      <div className="mx-auto h-px w-full max-w-[380px] bg-white/10">
+        <div
+          className="h-px origin-left bg-[#c4a574]"
+          style={{ transform: `scaleX(${progress})` }}
+        />
+      </div>
+
+      <div className="mx-auto flex w-full max-w-[380px] flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setError("");
+            setPlaying((value) => !value);
+          }}
+          disabled={!canExport || recording}
+          className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-sm text-[#f3efe6] active:scale-[0.98] disabled:opacity-40"
+        >
+          {playing ? <Pause size={16} weight="regular" /> : <Play size={16} weight="regular" />}
+          {playing ? "Stop" : "Play reel"}
+        </button>
+        <MagneticButton
+          onClick={() => {
+            if (!canExport) return;
+            setPlaying(false);
+            paint(1);
+            const canvas = canvasRef.current;
+            if (canvas) downloadStill(canvas, `mihrab-${slug}.png`);
+          }}
+          disabled={!canExport || recording}
+          className="inline-flex items-center gap-2 rounded-full bg-[#c4a574] px-4 py-2 text-sm text-[#231c16] disabled:opacity-40"
+        >
+          <ImageSquare size={16} weight="regular" />
+          Still
+          <DownloadSimple size={14} weight="regular" />
+        </MagneticButton>
+        <MagneticButton
+          onClick={onRecord}
+          disabled={!canExport || recording}
+          className="inline-flex items-center gap-2 rounded-full border border-[#c4a574]/50 px-4 py-2 text-sm text-[#f3efe6] disabled:opacity-40"
+        >
+          <FilmStrip size={16} weight="regular" />
+          {recording ? "Recording…" : "Reel"}
+        </MagneticButton>
+      </div>
+
+      <div className="mx-auto flex w-full max-w-[380px] gap-4 text-xs text-[#c8c0b4]">
+        <label className="inline-flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={useHook}
+            onChange={(event) => onHook(event.target.checked)}
+          />
+          Open with the hook
+        </label>
+        <label className="inline-flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={showMark}
+            onChange={(event) => onMark(event.target.checked)}
+          />
+          Mark Mihrab
+        </label>
+      </div>
+
+      {error && (
+        <p className="mx-auto max-w-[380px] text-sm text-[#e2b8a4]" role="alert">
+          {error}
+        </p>
+      )}
+      {!canExport && (
+        <p className="mx-auto max-w-[380px] text-sm text-[#c8c0b4]">
+          Write the English line before you export.
+        </p>
+      )}
+      <p className="mx-auto max-w-[380px] text-xs leading-relaxed text-[#9c9488]">
+        The reel is silent. Add recitation or a nasheed in your editor before you post.
+      </p>
+    </div>
+  );
+}
+
+function downloadBlobSafe(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}

@@ -1,0 +1,418 @@
+import type { Kind, Piece, Topic } from "../types";
+
+export const topics: { id: Topic; label: string }[] = [
+  { id: "mercy", label: "Mercy" },
+  { id: "patience", label: "Patience" },
+  { id: "prayer", label: "Prayer" },
+  { id: "trust", label: "Trust" },
+  { id: "character", label: "Character" },
+  { id: "gratitude", label: "Gratitude" },
+  { id: "hope", label: "Hope" },
+  { id: "time", label: "Time" },
+];
+
+export const kinds: { id: Kind | "all"; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "ayah", label: "Ayah" },
+  { id: "hadith", label: "Hadith" },
+  { id: "reminder", label: "Reminder" },
+];
+
+export const library: Piece[] = [
+  {
+    id: "sharh-94-6",
+    kind: "ayah",
+    topic: "patience",
+    arabic: "إِنَّ مَعَ الْعُسْرِ يُسْرًا",
+    english: "With hardship comes ease.",
+    source: "Ash-Sharh 94:6",
+    hook: "Hold this for the hard hour.",
+  },
+  {
+    id: "baqarah-2-153",
+    kind: "ayah",
+    topic: "patience",
+    arabic: "إِنَّ اللَّهَ مَعَ الصَّابِرِينَ",
+    english: "Allah is with those who are patient.",
+    source: "Al-Baqarah 2:153",
+    hook: "You are not waiting alone.",
+  },
+  {
+    id: "baqarah-2-286",
+    kind: "ayah",
+    topic: "patience",
+    arabic: "لَا يُكَلِّفُ اللَّهُ نَفْسًا إِلَّا وُسْعَهَا",
+    english: "Allah does not burden a soul beyond what it can bear.",
+    source: "Al-Baqarah 2:286",
+    hook: "This load was measured.",
+  },
+  {
+    id: "baqarah-2-45",
+    kind: "ayah",
+    topic: "prayer",
+    arabic: "وَاسْتَعِينُوا بِالصَّبْرِ وَالصَّلَاةِ",
+    english: "Seek help through patience and prayer.",
+    source: "Al-Baqarah 2:45",
+    hook: "Start with the prayer.",
+  },
+  {
+    id: "baqarah-2-152",
+    kind: "ayah",
+    topic: "prayer",
+    arabic: "فَاذْكُرُونِي أَذْكُرْكُمْ",
+    english: "Remember Me, and I will remember you.",
+    source: "Al-Baqarah 2:152",
+    hook: "A reminder, then a reply.",
+  },
+  {
+    id: "baqarah-2-186",
+    kind: "ayah",
+    topic: "hope",
+    arabic: "فَإِنِّي قَرِيبٌ ۖ أُجِيبُ دَعْوَةَ الدَّاعِ إِذَا دَعَانِ",
+    english: "I am near. I answer the call of whoever calls on Me.",
+    source: "Al-Baqarah 2:186",
+    hook: "Make the dua.",
+  },
+  {
+    id: "rad-13-28",
+    kind: "ayah",
+    topic: "prayer",
+    arabic: "أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ",
+    english: "In the remembrance of Allah, hearts find rest.",
+    source: "Ar-Ra'd 13:28",
+    hook: "If the heart is loud, remember Him.",
+  },
+  {
+    id: "zumar-39-53",
+    kind: "ayah",
+    topic: "mercy",
+    arabic: "لَا تَقْنَطُوا مِن رَّحْمَةِ اللَّهِ",
+    english: "Do not despair of the mercy of Allah.",
+    source: "Az-Zumar 39:53",
+    hook: "Mercy is wider than the mistake.",
+  },
+  {
+    id: "araf-7-156",
+    kind: "ayah",
+    topic: "mercy",
+    arabic: "وَرَحْمَتِي وَسِعَتْ كُلَّ شَيْءٍ",
+    english: "My mercy encompasses all things.",
+    source: "Al-A'raf 7:156",
+    hook: "There is room for you in it.",
+  },
+  {
+    id: "ghafir-40-60",
+    kind: "ayah",
+    topic: "prayer",
+    arabic: "ادْعُونِي أَسْتَجِبْ لَكُمْ",
+    english: "Call upon Me; I will answer you.",
+    source: "Ghafir 40:60",
+    hook: "The invitation is already spoken.",
+  },
+  {
+    id: "talaq-65-3",
+    kind: "ayah",
+    topic: "trust",
+    arabic: "وَمَن يَتَوَكَّلْ عَلَى اللَّهِ فَهُوَ حَسْبُهُ",
+    english: "Whoever trusts in Allah, He is enough for him.",
+    source: "At-Talaq 65:3",
+    hook: "Do what you can. He is enough.",
+  },
+  {
+    id: "hadid-57-4",
+    kind: "ayah",
+    topic: "trust",
+    arabic: "وَهُوَ مَعَكُمْ أَيْنَ مَا كُنتُمْ",
+    english: "He is with you wherever you are.",
+    source: "Al-Hadid 57:4",
+    hook: "You did not arrive here alone.",
+  },
+  {
+    id: "duha-93-7",
+    kind: "ayah",
+    topic: "hope",
+    arabic: "وَوَجَدَكَ ضَالًّا فَهَدَىٰ",
+    english: "He found you lost and guided you.",
+    source: "Ad-Duha 93:7",
+    hook: "Guidance already reached you once.",
+  },
+  {
+    id: "ibrahim-14-7",
+    kind: "ayah",
+    topic: "gratitude",
+    arabic: "لَئِن شَكَرْتُمْ لَأَزِيدَنَّكُمْ",
+    english: "If you are grateful, I will give you more.",
+    source: "Ibrahim 14:7",
+    hook: "Begin with thanks.",
+  },
+  {
+    id: "hujurat-49-13",
+    kind: "ayah",
+    topic: "character",
+    arabic: "إِنَّ أَكْرَمَكُمْ عِندَ اللَّهِ أَتْقَاكُمْ",
+    english: "The most honored of you before Allah is the most mindful of you.",
+    source: "Al-Hujurat 49:13",
+    hook: "Rank is not what people clap for.",
+  },
+  {
+    id: "rahman-55-13",
+    kind: "ayah",
+    topic: "gratitude",
+    arabic: "فَبِأَيِّ آلَاءِ رَبِّكُمَا تُكَذِّبَانِ",
+    english: "Which of your Lord's favors will you two deny?",
+    source: "Ar-Rahman 55:13",
+    hook: "Count one favor before the scroll.",
+  },
+  {
+    id: "asr-103",
+    kind: "ayah",
+    topic: "time",
+    arabic:
+      "وَالْعَصْرِ\nإِنَّ الْإِنسَانَ لَفِي خُسْرٍ\nإِلَّا الَّذِينَ آمَنُوا وَعَمِلُوا الصَّالِحَاتِ وَتَوَاصَوْا بِالْحَقِّ وَتَوَاصَوْا بِالصَّبْرِ",
+    english:
+      "By time. People are in loss, except those who believe, do good, and urge one another to truth and to patience.",
+    source: "Al-Asr 103",
+    hook: "The whole surah fits in one breath.",
+  },
+  {
+    id: "bukhari-character",
+    kind: "hadith",
+    topic: "character",
+    arabic: "خَيْرُكُمْ أَحْسَنُكُمْ أَخْلَاقًا",
+    english: "The best of you are those with the best character.",
+    source: "Sahih al-Bukhari",
+    hook: "Character is the public proof.",
+  },
+  {
+    id: "bukhari-muslim-brother",
+    kind: "hadith",
+    topic: "character",
+    arabic: "لَا يُؤْمِنُ أَحَدُكُمْ حَتَّى يُحِبَّ لِأَخِيهِ مَا يُحِبُّ لِنَفْسِهِ",
+    english:
+      "None of you truly believes until he loves for his brother what he loves for himself.",
+    source: "Bukhari and Muslim",
+    hook: "Faith shows up in what you want for others.",
+  },
+  {
+    id: "bukhari-ease",
+    kind: "hadith",
+    topic: "mercy",
+    arabic: "يَسِّرُوا وَلَا تُعَسِّرُوا وَبَشِّرُوا وَلَا تُنَفِّرُوا",
+    english:
+      "Make things easy, and do not make them hard. Give glad news, and do not drive people away.",
+    source: "Sahih al-Bukhari",
+    hook: "Ease is part of the teaching.",
+  },
+  {
+    id: "tirmidhi-camel",
+    kind: "hadith",
+    topic: "trust",
+    arabic: "اعْقِلْهَا وَتَوَكَّلْ",
+    english: "Tie it, and trust in Allah.",
+    source: "Jami' at-Tirmidhi",
+    hook: "Do the work, then trust.",
+  },
+  {
+    id: "muslim-strong",
+    kind: "hadith",
+    topic: "hope",
+    arabic:
+      "الْمُؤْمِنُ الْقَوِيُّ خَيْرٌ وَأَحَبُّ إِلَى اللَّهِ مِنَ الْمُؤْمِنِ الضَّعِيفِ وَفِي كُلٍّ خَيْرٌ",
+    english:
+      "The strong believer is better and more loved by Allah than the weak believer, and there is good in both.",
+    source: "Sahih Muslim",
+    hook: "Strength and gentleness can share a chest.",
+  },
+  {
+    id: "bukhari-muslim-speech",
+    kind: "hadith",
+    topic: "character",
+    arabic: "مَنْ كَانَ يُؤْمِنُ بِاللَّهِ وَالْيَوْمِ الْآخِرِ فَلْيَقُلْ خَيْرًا أَوْ لِيَصْمُتْ",
+    english:
+      "Whoever believes in Allah and the Last Day, let him speak good or stay silent.",
+    source: "Bukhari and Muslim",
+    hook: "Silence is a complete sentence.",
+  },
+  {
+    id: "tirmidhi-smile",
+    kind: "hadith",
+    topic: "character",
+    arabic: "تَبَسُّمُكَ فِي وَجْهِ أَخِيكَ لَكَ صَدَقَةٌ",
+    english: "Your smile toward your brother is charity.",
+    source: "Jami' at-Tirmidhi",
+    hook: "Charity can be this small.",
+  },
+  {
+    id: "bukhari-muslim-intent",
+    kind: "hadith",
+    topic: "character",
+    arabic: "إِنَّمَا الْأَعْمَالُ بِالنِّيَّاتِ",
+    english: "Actions are judged by intentions.",
+    source: "Bukhari and Muslim",
+    hook: "Begin with the intention.",
+  },
+  {
+    id: "muslim-beauty",
+    kind: "hadith",
+    topic: "gratitude",
+    arabic: "إِنَّ اللَّهَ جَمِيلٌ يُحِبُّ الْجَمَالَ",
+    english: "Allah is beautiful, and He loves beauty.",
+    source: "Sahih Muslim",
+    hook: "Beauty is not a side topic.",
+  },
+  {
+    id: "bukhari-muslim-steady",
+    kind: "hadith",
+    topic: "time",
+    arabic: "أَحَبُّ الْأَعْمَالِ إِلَى اللَّهِ أَدْوَمُهَا وَإِنْ قَلَّ",
+    english:
+      "The deeds most loved by Allah are those done steadily, even if they are small.",
+    source: "Bukhari and Muslim",
+    hook: "Small and steady outlasts a burst.",
+  },
+  {
+    id: "tirmidhi-concern",
+    kind: "hadith",
+    topic: "character",
+    arabic: "مِنْ حُسْنِ إِسْلَامِ الْمَرْءِ تَرْكُهُ مَا لَا يَعْنِيهِ",
+    english:
+      "From the beauty of a person's Islam is leaving what does not concern him.",
+    source: "Jami' at-Tirmidhi",
+    hook: "Leave what is not yours.",
+  },
+  {
+    id: "tirmidhi-taqwa",
+    kind: "hadith",
+    topic: "trust",
+    arabic: "اتَّقِ اللَّهَ حَيْثُمَا كُنْتَ",
+    english: "Be mindful of Allah wherever you are.",
+    source: "Jami' at-Tirmidhi",
+    hook: "The same mindfulness, every room.",
+  },
+  {
+    id: "rem-salah",
+    kind: "reminder",
+    topic: "prayer",
+    arabic: "",
+    english: "Pray this salah on time. The rest of the day can wait its turn.",
+    source: "A reminder",
+    hook: "Put the prayer in its place.",
+  },
+  {
+    id: "rem-dua",
+    kind: "reminder",
+    topic: "prayer",
+    arabic: "",
+    english: "The dua you rush past is often the one you needed.",
+    source: "A reminder",
+    hook: "Stay for one more sentence.",
+  },
+  {
+    id: "rem-speech",
+    kind: "reminder",
+    topic: "character",
+    arabic: "",
+    english: "Speak if it helps. If it does not, leave it unsaid.",
+    source: "A reminder",
+    hook: "Not every thought needs a voice.",
+  },
+  {
+    id: "rem-thanks",
+    kind: "reminder",
+    topic: "gratitude",
+    arabic: "",
+    english: "Name one blessing before you ask for another.",
+    source: "A reminder",
+    hook: "Thanks first.",
+  },
+  {
+    id: "rem-quran",
+    kind: "reminder",
+    topic: "time",
+    arabic: "",
+    english: "Five minutes of Qur'an will do more than an hour of worry.",
+    source: "A reminder",
+    hook: "Open it before you open the feed.",
+  },
+  {
+    id: "rem-return",
+    kind: "reminder",
+    topic: "hope",
+    arabic: "",
+    english: "Come back. The door was never locked.",
+    source: "A reminder",
+    hook: "Return is always available.",
+  },
+  {
+    id: "rem-plan",
+    kind: "reminder",
+    topic: "trust",
+    arabic: "",
+    english: "Make the plan. Then leave the outcome with Allah.",
+    source: "A reminder",
+    hook: "Your part has an edge. His does not.",
+  },
+  {
+    id: "rem-delay",
+    kind: "reminder",
+    topic: "patience",
+    arabic: "",
+    english: "A delayed answer is still an answer in the making.",
+    source: "A reminder",
+    hook: "Wait without inventing the ending.",
+  },
+  {
+    id: "rem-repent",
+    kind: "reminder",
+    topic: "mercy",
+    arabic: "",
+    english: "Repent before you rehearse the excuse.",
+    source: "A reminder",
+    hook: "A short return is enough to start.",
+  },
+  {
+    id: "rem-gaze",
+    kind: "reminder",
+    topic: "character",
+    arabic: "",
+    english: "Lower your gaze. The heart follows the eyes.",
+    source: "A reminder",
+    hook: "Guard the glance.",
+  },
+];
+
+export function kickerFor(kind: Kind): string {
+  if (kind === "ayah") return "QUR'AN";
+  if (kind === "hadith") return "HADITH";
+  return "REMINDER";
+}
+
+export function filterLibrary(kind: Kind | "all", topic: Topic | "all"): Piece[] {
+  return library.filter(
+    (piece) =>
+      (kind === "all" || piece.kind === kind) &&
+      (topic === "all" || piece.topic === topic),
+  );
+}
+
+const topicTag: Record<Topic, string> = {
+  mercy: "#rahma",
+  patience: "#sabr",
+  prayer: "#salah",
+  trust: "#tawakkul",
+  character: "#akhlaq",
+  gratitude: "#shukr",
+  hope: "#yaqeen",
+  time: "#deen",
+};
+
+export function buildCaption(piece: Piece): string {
+  const body = piece.arabic ? `${piece.arabic}\n\n${piece.english}` : piece.english;
+  const sourceLine =
+    piece.kind === "ayah"
+      ? `Qur'an · ${piece.source}`
+      : piece.kind === "hadith"
+        ? `Hadith · ${piece.source}`
+        : "Reminder";
+  return `${body}\n\n${sourceLine}\n\n#islam #muslim ${topicTag[piece.topic]}`;
+}
