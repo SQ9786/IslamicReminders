@@ -1,3 +1,4 @@
+import { motions } from "../data/backgrounds";
 import { library, topics } from "../data/library";
 import { themes } from "../data/themes";
 import type { Kind, Piece, Ratio, Topic } from "../types";
@@ -22,6 +23,7 @@ export type Desk = {
   savedIds: string[];
   savedOnly: boolean;
   tray: Piece[];
+  backgroundId: string | null;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -57,6 +59,7 @@ export function defaultDesk(): Desk {
     savedIds: [],
     savedOnly: false,
     tray: [],
+    backgroundId: motions[0].id,
   };
 }
 
@@ -86,6 +89,7 @@ export function loadDesk(): Desk {
       savedIds,
       savedOnly: data.savedOnly === true,
       tray,
+      backgroundId: backgroundFrom(data.backgroundId),
     };
   } catch {
     return base;
@@ -98,6 +102,12 @@ export function saveDesk(desk: Desk) {
   } catch {
     /* storage can be blocked */
   }
+}
+
+function backgroundFrom(value: unknown): string | null {
+  if (value === null) return null;
+  if (typeof value === "string" && motions.some((item) => item.id === value)) return value;
+  return motions[0].id;
 }
 
 export function freshDeskId() {

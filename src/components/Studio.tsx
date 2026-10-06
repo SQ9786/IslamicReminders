@@ -3,9 +3,11 @@ import { AnimatePresence, motion } from "framer-motion";
 import { BookmarkSimple, Check, Copy, MagnifyingGlass, Shuffle, Star, X } from "@phosphor-icons/react";
 import type { Kind, Piece, Ratio, Topic } from "../types";
 import { buildCaption, filterLibrary, kinds, library, topics } from "../data/library";
+import { motionById } from "../data/backgrounds";
 import { shellVars, themeById } from "../data/themes";
 import { freshDeskId, loadDesk, saveDesk } from "../lib/desk";
 import { ColourLauncher, ColourPanel } from "./ColourPanel";
+import { InstallHome } from "./InstallHome";
 import { MagneticButton } from "./MagneticButton";
 import { Stage } from "./Stage";
 import { WordBand } from "./WordBand";
@@ -55,13 +57,17 @@ export function Studio() {
   const [notice, setNotice] = useState("");
   const [copied, setCopied] = useState(false);
   const [colourOpen, setColourOpen] = useState(initialColourOpen);
+  const [backgroundId, setBackgroundId] = useState<string | null>(stored.backgroundId);
+  const [videoReady, setVideoReady] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const matches = useMemo(
     () => filterLibrary(kind, topic, query, savedIds, savedOnly),
     [kind, topic, query, savedIds, savedOnly],
   );
   const theme = themeById(themeId);
+  const ground = motionById(backgroundId);
   const pinned = tray.some((piece) => piece.id === draft.id);
 
   useEffect(() => {
@@ -71,6 +77,7 @@ export function Studio() {
       if (typeof value === "string") root.style.setProperty(key, value);
     }
     root.style.colorScheme = theme.shell.light ? "light" : "dark";
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme.shell.page);
   }, [theme]);
 
   useEffect(() => {
@@ -87,10 +94,11 @@ export function Studio() {
         savedIds,
         savedOnly,
         tray,
+        backgroundId,
       });
     }, 180);
     return () => window.clearTimeout(id);
-  }, [draft, kind, topic, themeId, ratio, duration, useHook, showMark, savedIds, savedOnly, tray]);
+  }, [draft, kind, topic, themeId, ratio, duration, useHook, showMark, savedIds, savedOnly, tray, backgroundId]);
 
   function setColour(open: boolean) {
     setColourOpen(open);
@@ -202,11 +210,39 @@ export function Studio() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !ground) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) {
+      video.pause();
+      return;
+    }
+    video.play().catch(() => {});
+  }, [ground]);
+
   return (
     <div
-      className="mx-auto flex min-h-[100dvh] w-full max-w-[1560px] flex-col px-4 py-6 md:px-8 md:py-8"
+      className="relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-[1560px] flex-col px-4 py-6 md:px-8 md:py-8"
       style={shellVars(theme)}
     >
+      {ground && (
+        <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden="true">
+          <video
+            ref={videoRef}
+            key={ground.id}
+            className="h-full w-full object-cover opacity-90 mix-blend-soft-light"
+            src={ground.src}
+            poster={ground.poster}
+            muted
+            loop
+            playsInline
+            autoPlay
+            onLoadedData={() => setVideoReady((value) => value + 1)}
+          />
+          <div className="absolute inset-0" style={{ background: theme.shell.page, opacity: 0.5 }} />
+        </div>
+      )}
       <WordBand />
       <header className="mt-8 flex flex-wrap items-end justify-between gap-6">
         <div>
@@ -219,13 +255,16 @@ export function Studio() {
             the desk keeps the line when you come back.
           </p>
         </div>
-        <p className="hidden text-xs leading-relaxed text-[var(--faint)] md:block">
-          <span className="tabular-nums">{library.length}</span> lines
-          <span className="mx-2 text-[var(--line)]">/</span>
-          C composes
-          <span className="mx-2 text-[var(--line)]">/</span>
-          slash searches
-        </p>
+        <div className="flex flex-col items-start gap-3 md:items-end">
+          <InstallHome />
+          <p className="hidden text-xs leading-relaxed text-[var(--faint)] md:block">
+            <span className="tabular-nums">{library.length}</span> lines
+            <span className="mx-2 text-[var(--line)]">/</span>
+            C composes
+            <span className="mx-2 text-[var(--line)]">/</span>
+            slash searches
+          </p>
+        </div>
       </header>
 
       <div className="mt-8 grid grid-cols-1 items-start gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(320px,440px)_auto] lg:gap-8">
@@ -523,7 +562,7 @@ export function Studio() {
         </section>
 
         <section className="order-1 flex flex-col gap-3 lg:sticky lg:top-8 lg:order-2">
-          <ColourLauncher theme={theme} onOpen={() => setColour(true)} />
+          <ColourLauncher theme={theme} motionName={ground?.name} onOpen={() => setColour(true)} />
           <Stage
             piece={draft}
             theme={theme}
@@ -537,9 +576,19 @@ export function Studio() {
             }}
             onHook={setUseHook}
             onMark={setShowMark}
+            motion={ground}
+            videoRef={videoRef}
+            videoReady={videoReady}
           />
         </section>
-        <ColourPanel themeId={themeId} open={colourOpen} onOpen={setColour} onTheme={setThemeId} />
+        <ColourPanel
+          themeId={themeId}
+          backgroundId={backgroundId}
+          open={colourOpen}
+          onOpen={setColour}
+          onTheme={setThemeId}
+          onBackground={setBackgroundId}
+        />
       </div>
     </div>
   );

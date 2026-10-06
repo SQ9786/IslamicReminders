@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { DownloadSimple, FilmStrip, ImageSquare, Pause, Play } from "@phosphor-icons/react";
+import type { Motion } from "../data/backgrounds";
 import type { Piece, Ratio, Theme } from "../types";
-import { drawReminder, ratioSize, type DrawSpec } from "../lib/drawReminder";
+import { drawReminder, ratioSize, type DrawSpec, type Plate } from "../lib/drawReminder";
 import { downloadStill, fileSlug, recordReel } from "../lib/exportMedia";
 import { MagneticButton } from "./MagneticButton";
 
@@ -16,6 +17,9 @@ type Props = {
   onDuration: (seconds: number) => void;
   onHook: (value: boolean) => void;
   onMark: (value: boolean) => void;
+  motion: Motion | null;
+  videoRef: RefObject<HTMLVideoElement | null>;
+  videoReady: number;
 };
 
 const ratios: Ratio[] = ["9:16", "4:5", "1:1"];
@@ -32,6 +36,9 @@ export function Stage({
   onDuration,
   onHook,
   onMark,
+  motion,
+  videoRef,
+  videoReady,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const lock = useRef(false);
@@ -53,10 +60,27 @@ export function Stage({
     useHook,
     showMark,
     fontsReady,
+    motion?.id ?? "still",
+    videoReady,
   ].join("|");
 
+  function plate(): Plate | null {
+    const video = videoRef.current;
+    if (!motion || !video || video.readyState < 2 || video.videoWidth < 2) return null;
+    return {
+      source: video,
+      width: video.videoWidth,
+      height: video.videoHeight,
+      ink: motion.ink,
+      muted: motion.muted,
+      rule: motion.rule,
+      veil: motion.veil,
+      light: motion.light,
+    };
+  }
+
   function spec(): DrawSpec {
-    return { piece, theme, ratio, useHook, showMark };
+    return { piece, theme, ratio, useHook, showMark, plate: plate() };
   }
 
   function paint(t: number) {
@@ -104,6 +128,21 @@ export function Stage({
     const current = spec();
 
     if (!playing) {
+      const reduce =
+        typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (motion && !reduce) {
+        let frame = 0;
+        let last = 0;
+        const loop = (now: number) => {
+          if (!document.hidden && now - last > 32) {
+            last = now;
+            drawReminder(ctx, spec(), 1);
+          }
+          frame = requestAnimationFrame(loop);
+        };
+        frame = requestAnimationFrame(loop);
+        return () => cancelAnimationFrame(frame);
+      }
       drawReminder(ctx, current, 1);
       setProgress(1);
       return;

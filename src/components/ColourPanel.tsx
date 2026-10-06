@@ -1,16 +1,27 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { CaretRight, Palette, X } from "@phosphor-icons/react";
+import { motions } from "../data/backgrounds";
 import type { Theme } from "../types";
 import { themes } from "../data/themes";
 
 type Props = {
   themeId: string;
+  backgroundId: string | null;
   open: boolean;
   onOpen: (open: boolean) => void;
   onTheme: (id: string) => void;
+  onBackground: (id: string | null) => void;
 };
 
-export function ColourLauncher({ theme, onOpen }: { theme: Theme; onOpen: () => void }) {
+export function ColourLauncher({
+  theme,
+  motionName,
+  onOpen,
+}: {
+  theme: Theme;
+  motionName?: string;
+  onOpen: () => void;
+}) {
   return (
     <button
       type="button"
@@ -18,7 +29,7 @@ export function ColourLauncher({ theme, onOpen }: { theme: Theme; onOpen: () => 
       className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-3 py-1.5 text-sm text-[var(--ink)] active:scale-[0.98] lg:hidden"
     >
       <Palette size={16} weight="regular" />
-      Colour
+      {motionName ?? "Colour"}
       <span
         className="h-3 w-3 rounded-full"
         style={{ background: `linear-gradient(160deg, ${theme.bg[0]}, ${theme.bg[2]})` }}
@@ -28,7 +39,7 @@ export function ColourLauncher({ theme, onOpen }: { theme: Theme; onOpen: () => 
   );
 }
 
-export function ColourPanel({ themeId, open, onOpen, onTheme }: Props) {
+export function ColourPanel({ themeId, backgroundId, open, onOpen, onTheme, onBackground }: Props) {
   const theme = themes.find((item) => item.id === themeId) ?? themes[0];
 
   return (
@@ -44,7 +55,7 @@ export function ColourPanel({ themeId, open, onOpen, onTheme }: Props) {
                 <p className="text-[0.68rem] uppercase tracking-[0.22em] text-[var(--accent)]">
                   Settings
                 </p>
-                <h2 className="mt-1 text-lg tracking-tight text-[var(--ink)]">Colour scheme</h2>
+                <h2 className="mt-1 text-lg tracking-tight text-[var(--ink)]">Frame</h2>
               </div>
               <button
                 type="button"
@@ -56,8 +67,9 @@ export function ColourPanel({ themeId, open, onOpen, onTheme }: Props) {
               </button>
             </div>
             <p className="mt-2 text-xs leading-relaxed text-[var(--faint)]">
-              The studio and the frame share the scheme you pick.
+              Motion fills the frame. Colour still dresses the studio.
             </p>
+            <MotionList backgroundId={backgroundId} onBackground={onBackground} />
             <ThemeList themeId={themeId} onTheme={onTheme} />
           </div>
         ) : (
@@ -107,7 +119,7 @@ export function ColourPanel({ themeId, open, onOpen, onTheme }: Props) {
                   <p className="text-[0.68rem] uppercase tracking-[0.22em] text-[var(--accent)]">
                     Settings
                   </p>
-                  <h2 className="mt-1 text-lg tracking-tight text-[var(--ink)]">Colour scheme</h2>
+                  <h2 className="mt-1 text-lg tracking-tight text-[var(--ink)]">Frame</h2>
                 </div>
                 <button
                   type="button"
@@ -119,8 +131,15 @@ export function ColourPanel({ themeId, open, onOpen, onTheme }: Props) {
                 </button>
               </div>
               <p className="mt-2 text-xs leading-relaxed text-[var(--faint)]">
-                The studio and the frame share the scheme you pick.
+                Motion fills the frame. Colour still dresses the studio.
               </p>
+              <MotionList
+                backgroundId={backgroundId}
+                onBackground={(id) => {
+                  onBackground(id);
+                  onOpen(false);
+                }}
+              />
               <ThemeList
                 themeId={themeId}
                 onTheme={(id) => {
@@ -136,9 +155,64 @@ export function ColourPanel({ themeId, open, onOpen, onTheme }: Props) {
   );
 }
 
+function MotionList({
+  backgroundId,
+  onBackground,
+}: {
+  backgroundId: string | null;
+  onBackground: (id: string | null) => void;
+}) {
+  return (
+    <>
+    <p className="mt-4 text-sm text-[var(--ink)]">Motion</p>
+    <ul className="mt-2 grid grid-cols-2 gap-2">
+      <li>
+        <button
+          type="button"
+          onClick={() => onBackground(null)}
+          aria-pressed={backgroundId === null}
+          className={`w-full rounded-2xl border p-1.5 text-left active:scale-[0.98] ${
+            backgroundId === null ? "border-[var(--accent)] bg-[var(--wash)]" : "border-[var(--line)]"
+          }`}
+        >
+          <span className="block h-16 rounded-xl bg-[var(--wash)]" />
+          <span className="mt-1.5 block px-1 text-sm text-[var(--ink)]">Still</span>
+          <span className="block px-1 text-[0.68rem] text-[var(--faint)]">Colour only</span>
+        </button>
+      </li>
+      {motions.map((item) => {
+        const selected = item.id === backgroundId;
+        return (
+          <li key={item.id}>
+            <button
+              type="button"
+              onClick={() => onBackground(item.id)}
+              aria-pressed={selected}
+              className={`w-full rounded-2xl border p-1.5 text-left active:scale-[0.98] ${
+                selected ? "border-[var(--accent)] bg-[var(--wash)]" : "border-[var(--line)]"
+              }`}
+            >
+              <img
+                src={item.poster}
+                alt=""
+                className="h-16 w-full rounded-xl object-cover"
+              />
+              <span className="mt-1.5 block px-1 text-sm text-[var(--ink)]">{item.name}</span>
+              <span className="block px-1 text-[0.68rem] text-[var(--faint)]">{item.note}</span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+    </>
+  );
+}
+
 function ThemeList({ themeId, onTheme }: { themeId: string; onTheme: (id: string) => void }) {
   return (
-    <ul className="mt-4 grid gap-2">
+    <>
+    <p className="mt-5 text-sm text-[var(--ink)]">Colour</p>
+    <ul className="mt-2 grid gap-2">
       {themes.map((item) => {
         const selected = item.id === themeId;
         return (
@@ -179,5 +253,6 @@ function ThemeList({ themeId, onTheme }: { themeId: string; onTheme: (id: string
         );
       })}
     </ul>
+    </>
   );
 }

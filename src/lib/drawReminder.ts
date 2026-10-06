@@ -7,13 +7,40 @@ export const ratioSize: Record<Ratio, { w: number; h: number }> = {
   "1:1": { w: 1080, h: 1080 },
 };
 
+export type Plate = {
+  source: CanvasImageSource;
+  width: number;
+  height: number;
+  ink: string;
+  muted: string;
+  rule: string;
+  veil: string;
+  light: boolean;
+};
+
 export type DrawSpec = {
   piece: Piece;
   theme: Theme;
   ratio: Ratio;
   useHook: boolean;
   showMark: boolean;
+  plate?: Plate | null;
 };
+
+function drawCover(
+  ctx: CanvasRenderingContext2D,
+  source: CanvasImageSource,
+  sw: number,
+  sh: number,
+  w: number,
+  h: number,
+) {
+  if (sw < 2 || sh < 2) return;
+  const scale = Math.max(w / sw, h / sh);
+  const dw = sw * scale;
+  const dh = sh * scale;
+  ctx.drawImage(source, (w - dw) / 2, (h - dh) / 2, dw, dh);
+}
 
 let noiseTile: HTMLCanvasElement | null = null;
 
@@ -176,41 +203,58 @@ export function drawReminder(
   t: number,
 ) {
   const { w, h } = ratioSize[spec.ratio];
-  const { theme, piece, useHook, showMark } = spec;
+  const { theme, piece, useHook, showMark, plate } = spec;
   const reduce =
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const drift = reduce ? 0 : t * w * 0.02;
   const alpha = layerAlpha(Math.min(1, Math.max(0, t)), useHook && Boolean(piece.hook.trim()));
+  const hasPlate = Boolean(plate && plate.width > 1 && plate.height > 1);
+  const ink = hasPlate && plate ? plate.ink : theme.ink;
+  const muted = hasPlate && plate ? plate.muted : theme.muted;
+  const rule = hasPlate && plate ? plate.rule : theme.rule;
 
   ctx.clearRect(0, 0, w, h);
-  const ground = ctx.createLinearGradient(0, 0, w * 0.2, h);
-  ground.addColorStop(0, theme.bg[0]);
-  ground.addColorStop(0.58, theme.bg[1]);
-  ground.addColorStop(1, theme.bg[2]);
-  ctx.fillStyle = ground;
-  ctx.fillRect(0, 0, w, h);
+  if (hasPlate && plate) {
+    drawCover(ctx, plate.source, plate.width, plate.height, w, h);
+    ctx.fillStyle = plate.veil;
+    ctx.fillRect(0, 0, w, h);
+    const band = ctx.createLinearGradient(0, h * 0.2, 0, h * 0.82);
+    band.addColorStop(0, plate.light ? "rgba(255,248,240,0)" : "rgba(0,0,0,0)");
+    band.addColorStop(0.5, plate.light ? "rgba(255,248,240,0.28)" : "rgba(0,0,0,0.34)");
+    band.addColorStop(1, plate.light ? "rgba(255,248,240,0.08)" : "rgba(0,0,0,0.2)");
+    ctx.fillStyle = band;
+    ctx.fillRect(0, 0, w, h);
+  } else {
+    const ground = ctx.createLinearGradient(0, 0, w * 0.2, h);
+    ground.addColorStop(0, theme.bg[0]);
+    ground.addColorStop(0.58, theme.bg[1]);
+    ground.addColorStop(1, theme.bg[2]);
+    ctx.fillStyle = ground;
+    ctx.fillRect(0, 0, w, h);
 
-  const glow = ctx.createRadialGradient(w * 0.18, h * 0.12, 0, w * 0.28, h * 0.18, w * 0.95);
-  glow.addColorStop(0, theme.glow);
-  glow.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, w, h);
+    const glow = ctx.createRadialGradient(w * 0.18, h * 0.12, 0, w * 0.28, h * 0.18, w * 0.95);
+    glow.addColorStop(0, theme.glow);
+    glow.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, w, h);
 
-  ctx.save();
-  ctx.strokeStyle = theme.motif;
-  ctx.lineWidth = Math.max(1.25, w / 520);
-  const step = w / 4.6;
-  const radius = step * 0.22;
-  for (let y = -step; y < h + step; y += step) {
-    for (let x = -step; x < w + step; x += step) {
-      strokeStar(ctx, x + drift, y + drift * 0.35, radius);
+    ctx.save();
+    ctx.strokeStyle = theme.motif;
+    ctx.lineWidth = Math.max(1.25, w / 520);
+    const step = w / 4.6;
+    const radius = step * 0.22;
+    for (let y = -step; y < h + step; y += step) {
+      for (let x = -step; x < w + step; x += step) {
+        strokeStar(ctx, x + drift, y + drift * 0.35, radius);
+      }
     }
+    ctx.restore();
   }
-  ctx.restore();
 
   ctx.save();
-  ctx.strokeStyle = theme.motif;
+  ctx.strokeStyle = hasPlate ? rule : theme.motif;
+  ctx.globalAlpha = hasPlate ? 0.55 : 1;
   ctx.lineWidth = Math.max(1.5, w / 280);
   drawArch(ctx, w, h);
   ctx.restore();
@@ -235,7 +279,7 @@ export function drawReminder(
 
   const margin = w * 0.105;
   ctx.save();
-  ctx.strokeStyle = theme.rule;
+  ctx.strokeStyle = rule;
   ctx.lineWidth = Math.max(2, w * 0.0035);
   ctx.strokeRect(margin * 0.48, margin * 0.48, w - margin * 0.96, h - margin * 0.96);
   ctx.restore();
@@ -250,7 +294,7 @@ export function drawReminder(
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     ctx.direction = "ltr";
-    ctx.fillStyle = theme.ink;
+    ctx.fillStyle = ink;
     const fitted = fit(
       ctx,
       piece.hook,
@@ -268,7 +312,7 @@ export function drawReminder(
   ctx.save();
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
-  ctx.fillStyle = theme.ink;
+  ctx.fillStyle = ink;
 
   const kickerSize = w * 0.028;
   ctx.font = `500 ${kickerSize}px Outfit, sans-serif`;
@@ -325,7 +369,7 @@ export function drawReminder(
   ctx.globalAlpha = alpha.kicker;
   ctx.translate(0, rise(alpha.kicker));
   ctx.font = `500 ${kickerSize * scale}px Outfit, sans-serif`;
-  ctx.fillStyle = theme.muted;
+  ctx.fillStyle = muted;
   ctx.direction = "ltr";
   drawTracked(ctx, kicker, cx, y, w * 0.012);
   ctx.restore();
@@ -336,7 +380,7 @@ export function drawReminder(
     ctx.globalAlpha = alpha.arabic;
     ctx.translate(0, rise(alpha.arabic));
     ctx.font = arabicFont(arabic.size * scale);
-    ctx.fillStyle = theme.ink;
+    ctx.fillStyle = ink;
     ctx.direction = "rtl";
     y += drawLines(ctx, arabic.lines, cx, y, arabicLeading * scale);
     ctx.restore();
@@ -345,7 +389,7 @@ export function drawReminder(
 
   ctx.save();
   ctx.globalAlpha = Math.max(alpha.arabic, alpha.english);
-  ctx.fillStyle = theme.rule;
+  ctx.fillStyle = rule;
   const d = ornament * 0.55 * scale;
   ctx.beginPath();
   ctx.moveTo(cx, y);
@@ -361,7 +405,7 @@ export function drawReminder(
   ctx.globalAlpha = piece.english.trim() ? alpha.english : 0.85;
   ctx.translate(0, rise(alpha.english));
   ctx.font = englishFont((piece.english.trim() ? english.size : w * 0.04) * scale);
-  ctx.fillStyle = piece.english.trim() ? theme.ink : theme.muted;
+  ctx.fillStyle = piece.english.trim() ? ink : muted;
   ctx.direction = "ltr";
   drawLines(ctx, english.lines, cx, y, englishLeading * scale);
   ctx.restore();
@@ -370,11 +414,11 @@ export function drawReminder(
   ctx.save();
   ctx.globalAlpha = alpha.source;
   ctx.font = `500 ${w * 0.026 * scale}px Outfit, sans-serif`;
-  ctx.fillStyle = theme.muted;
+  ctx.fillStyle = muted;
   ctx.direction = "ltr";
   ctx.textAlign = "center";
   const sourceY = h - margin * 1.15 - (showMark ? w * 0.06 : 0);
-  ctx.strokeStyle = theme.rule;
+  ctx.strokeStyle = rule;
   ctx.lineWidth = 1.5;
   ctx.globalAlpha = alpha.source * 0.8;
   ctx.beginPath();
