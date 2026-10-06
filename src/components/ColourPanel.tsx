@@ -34,7 +34,7 @@ export function ColourPanel({ themeId, open, onOpen, onTheme }: Props) {
   return (
     <>
       <aside
-        className={`sticky top-8 hidden self-start lg:order-3 lg:block ${open ? "w-[280px]" : "w-14"}`}
+        className={`sticky top-8 hidden max-h-[calc(100dvh-4rem)] self-start overflow-y-auto lg:order-3 lg:block ${open ? "w-[280px]" : "w-14"}`}
         aria-label="Colour settings"
       >
         {open ? (
@@ -82,7 +82,7 @@ export function ColourPanel({ themeId, open, onOpen, onTheme }: Props) {
       <AnimatePresence>
         {open && (
           <motion.div
-            className="fixed inset-0 z-30 lg:hidden"
+            className="fixed inset-0 z-50 lg:hidden"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

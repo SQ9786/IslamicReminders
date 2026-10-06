@@ -387,12 +387,28 @@ export function kickerFor(kind: Kind): string {
   return "REMINDER";
 }
 
-export function filterLibrary(kind: Kind | "all", topic: Topic | "all"): Piece[] {
-  return library.filter(
-    (piece) =>
-      (kind === "all" || piece.kind === kind) &&
-      (topic === "all" || piece.topic === topic),
-  );
+export function filterLibrary(
+  kind: Kind | "all",
+  topic: Topic | "all",
+  query = "",
+  savedIds: readonly string[] = [],
+  savedOnly = false,
+): Piece[] {
+  const needle = query.trim().toLowerCase();
+  const arabicNeedle = query.trim();
+  const saved = new Set(savedIds);
+  return library.filter((piece) => {
+    if (kind !== "all" && piece.kind !== kind) return false;
+    if (topic !== "all" && piece.topic !== topic) return false;
+    if (savedOnly && !saved.has(piece.id)) return false;
+    if (!needle) return true;
+    return (
+      piece.english.toLowerCase().includes(needle) ||
+      piece.source.toLowerCase().includes(needle) ||
+      piece.hook.toLowerCase().includes(needle) ||
+      (arabicNeedle.length > 0 && piece.arabic.includes(arabicNeedle))
+    );
+  });
 }
 
 const topicTag: Record<Topic, string> = {

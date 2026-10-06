@@ -126,6 +126,13 @@ export function Stage({
 
   const canExport = Boolean(piece.english.trim());
   const slug = fileSlug(piece.source || piece.english.slice(0, 24));
+  const size = ratioSize[ratio];
+  const frameWidth =
+    ratio === "9:16"
+      ? "min(100%, 440px, calc(62dvh * 9 / 16))"
+      : ratio === "4:5"
+        ? "min(100%, 440px, calc(62dvh * 4 / 5))"
+        : "min(100%, 440px, 62dvh)";
 
   async function onRecord() {
     const canvas = canvasRef.current;
@@ -163,8 +170,8 @@ export function Stage({
               key={item}
               type="button"
               onClick={() => onRatio(item)}
-              className={`rounded-full px-3 py-1 text-xs tracking-wide ${
-                ratio === item ? "bg-[var(--accent)] text-[var(--accent-ink)]" : "text-[var(--soft)]"
+              className={`rounded-full px-3 py-1 text-xs tracking-wide transition-colors ${
+                ratio === item ? "bg-[var(--accent)] text-[var(--accent-ink)]" : "text-[var(--soft)] hover:text-[var(--ink)]"
               }`}
             >
               {item}
@@ -177,8 +184,8 @@ export function Stage({
               key={seconds}
               type="button"
               onClick={() => onDuration(seconds)}
-              className={`rounded-full px-3 py-1 text-xs ${
-                duration === seconds ? "bg-[var(--wash)] text-[var(--ink)]" : "text-[var(--soft)]"
+              className={`rounded-full px-3 py-1 text-xs tabular-nums transition-colors ${
+                duration === seconds ? "bg-[var(--wash)] text-[var(--ink)]" : "text-[var(--soft)] hover:text-[var(--ink)]"
               }`}
             >
               {seconds}s
@@ -187,31 +194,39 @@ export function Stage({
         </div>
       </div>
 
-      <div className="relative mx-auto w-full max-w-[380px]">
-        {!fontsReady && (
+      <div className="mx-auto flex w-full flex-col gap-3" style={{ width: frameWidth }}>
+        <div className="relative">
+          {!fontsReady && (
+            <div
+              className={`absolute inset-0 animate-pulse rounded-[1.4rem] bg-[var(--wash)] ${
+                ratio === "9:16" ? "aspect-[9/16]" : ratio === "4:5" ? "aspect-[4/5]" : "aspect-square"
+              }`}
+            />
+          )}
           <div
-            className={`absolute inset-0 animate-pulse rounded-[1.4rem] bg-[var(--wash)] ${
-              ratio === "9:16" ? "aspect-[9/16]" : ratio === "4:5" ? "aspect-[4/5]" : "aspect-square"
+            className={`overflow-hidden rounded-[1.4rem] shadow-[0_30px_70px_-24px_rgba(20,16,12,0.45)] ring-1 ring-[var(--line)] transition-opacity duration-500 ${
+              fontsReady ? "opacity-100" : "opacity-0"
             }`}
-          />
-        )}
-        <div
-          className={`overflow-hidden rounded-[1.4rem] shadow-[0_30px_70px_-24px_rgba(20,16,12,0.45)] ring-1 ring-[var(--line)] transition-opacity duration-500 ${
-            fontsReady ? "opacity-100" : "opacity-0"
-          }`}
-        >
-          <canvas ref={canvasRef} className="block h-auto w-full" />
+          >
+            <canvas ref={canvasRef} className="block h-auto w-full" />
+          </div>
         </div>
-      </div>
 
-      <div className="mx-auto h-px w-full max-w-[380px] bg-[var(--line)]">
-        <div
-          className="h-px origin-left bg-[var(--accent)]"
-          style={{ transform: `scaleX(${progress})` }}
-        />
-      </div>
+        <div className="flex items-center justify-between text-[0.68rem] text-[var(--faint)]">
+          <p className="tabular-nums">
+            {size.w} × {size.h}
+          </p>
+          <p>{theme.name}</p>
+        </div>
 
-      <div className="mx-auto flex w-full max-w-[380px] flex-wrap gap-2">
+        <div className="h-0.5 w-full bg-[var(--line)]">
+          <div
+            className="h-0.5 origin-left bg-[var(--accent)]"
+            style={{ transform: `scaleX(${progress})` }}
+          />
+        </div>
+
+        <div className="flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => {
@@ -219,7 +234,7 @@ export function Stage({
             setPlaying((value) => !value);
           }}
           disabled={!canExport || recording}
-          className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-4 py-2 text-sm text-[var(--ink)] active:scale-[0.98] disabled:opacity-40"
+          className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-4 py-2 text-sm text-[var(--ink)] transition-colors hover:bg-[var(--wash)] active:scale-[0.98] disabled:opacity-40"
         >
           {playing ? <Pause size={16} weight="regular" /> : <Play size={16} weight="regular" />}
           {playing ? "Stop" : "Play reel"}
@@ -247,9 +262,9 @@ export function Stage({
           <FilmStrip size={16} weight="regular" />
           {recording ? "Recording…" : "Reel"}
         </MagneticButton>
-      </div>
+        </div>
 
-      <div className="mx-auto flex w-full max-w-[380px] gap-4 text-xs text-[var(--soft)]">
+      <div className="flex gap-4 text-xs text-[var(--soft)]">
         <label className="inline-flex items-center gap-2">
           <input
             type="checkbox"
@@ -269,18 +284,17 @@ export function Stage({
       </div>
 
       {error && (
-        <p className="mx-auto max-w-[380px] text-sm text-[var(--danger)]" role="alert">
+        <p className="text-sm text-[var(--danger)]" role="alert">
           {error}
         </p>
       )}
       {!canExport && (
-        <p className="mx-auto max-w-[380px] text-sm text-[var(--soft)]">
-          Write the English line before you export.
-        </p>
+        <p className="text-sm text-[var(--soft)]">Write the English line before you export.</p>
       )}
-      <p className="mx-auto max-w-[380px] text-xs leading-relaxed text-[var(--faint)]">
+      <p className="text-xs leading-relaxed text-[var(--faint)]">
         The reel is silent. Add recitation or a nasheed in your editor before you post.
       </p>
+      </div>
     </div>
   );
 }

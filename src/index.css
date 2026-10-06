@@ -2,6 +2,7 @@
 
 @theme {
   --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
 }
 
 :root {
