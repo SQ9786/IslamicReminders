@@ -148,6 +148,52 @@ export function placeInRun(t: number, count: number) {
   return { index, local: scaled - index };
 }
 
+export type RunLayer = { index: number; local: number; fade: number };
+
+function clamp01(value: number) {
+  if (!Number.isFinite(value)) return 1;
+  return Math.min(1, Math.max(0, value));
+}
+
+function smooth01(value: number) {
+  const x = clamp01(value);
+  return x * x * (3 - 2 * x);
+}
+
+function prefersReducedMotion() {
+  return typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+export function runLayers(t: number, count: number): RunLayer[] {
+  const safeCount = Math.max(1, Math.floor(count));
+  const time = clamp01(t);
+  if (safeCount === 1) return [{ index: 0, local: time, fade: 1 }];
+  if (prefersReducedMotion()) {
+    const placed = placeInRun(time, safeCount);
+    return [{ index: placed.index, local: placed.local, fade: 1 }];
+  }
+  if (time >= 1) return [{ index: safeCount - 1, local: 1, fade: 1 }];
+  const span = 1 / safeCount;
+  const overlap = span * 0.16;
+  const layers: RunLayer[] = [];
+  for (let index = 0; index < safeCount; index++) {
+    const origin = index * span - (index > 0 ? overlap : 0);
+    const end = (index + 1) * span;
+    if (time < origin || time > end) continue;
+    const local = Math.min(1, (time - origin) / span);
+    let fade = 1;
+    if (index > 0) fade = Math.min(fade, smooth01((time - origin) / overlap));
+    if (index < safeCount - 1) fade = Math.min(fade, smooth01((end - time) / overlap));
+    if (fade <= 0.01) continue;
+    layers.push({ index, local, fade });
+  }
+  if (!layers.length) {
+    const placed = placeInRun(time, safeCount);
+    return [{ index: placed.index, local: placed.local, fade: 1 }];
+  }
+  return layers;
+}
+
 const reelTypes = [
   "video/mp4;codecs=avc1.42E01E",
   "video/mp4",

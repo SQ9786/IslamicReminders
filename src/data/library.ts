@@ -393,14 +393,18 @@ export function filterLibrary(
   query = "",
   savedIds: readonly string[] = [],
   savedOnly = false,
+  postedIds: readonly string[] = [],
+  freshOnly = false,
 ): Piece[] {
   const needle = query.trim().toLowerCase();
   const arabicNeedle = query.trim();
   const saved = new Set(savedIds);
+  const posted = new Set(postedIds);
   return library.filter((piece) => {
     if (kind !== "all" && piece.kind !== kind) return false;
     if (topic !== "all" && piece.topic !== topic) return false;
     if (savedOnly && !saved.has(piece.id)) return false;
+    if (freshOnly && posted.has(piece.id)) return false;
     if (!needle) return true;
     return (
       piece.english.toLowerCase().includes(needle) ||

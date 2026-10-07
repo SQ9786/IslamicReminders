@@ -30,6 +30,8 @@ export type Desk = {
   seat: Seat;
   clear: boolean;
   guides: boolean;
+  postedIds: string[];
+  freshOnly: boolean;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -70,6 +72,8 @@ export function defaultDesk(): Desk {
     seat: "mid",
     clear: false,
     guides: false,
+    postedIds: [],
+    freshOnly: false,
   };
 }
 
@@ -104,6 +108,8 @@ export function loadDesk(): Desk {
       seat: seats.has(data.seat as Seat) ? (data.seat as Seat) : base.seat,
       clear: data.clear === true,
       guides: data.guides === true,
+      postedIds: postedFrom(data.postedIds),
+      freshOnly: data.freshOnly === true,
     };
   } catch {
     return base;
@@ -116,6 +122,12 @@ export function saveDesk(desk: Desk) {
   } catch {
     /* storage can be blocked */
   }
+}
+
+function postedFrom(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const ids = value.filter((id): id is string => typeof id === "string" && id.length > 0 && id.length < 80 && id !== "custom");
+  return [...new Set(ids)].slice(-400);
 }
 
 function backgroundFrom(value: unknown): string | null {

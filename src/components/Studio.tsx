@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowUUpLeft, BookmarkSimple, Check, Copy, MagnifyingGlass, Shuffle, Star, X } from "@phosphor-icons/react";
+import { ArrowUUpLeft, BookmarkSimple, Check, CheckCircle, Copy, MagnifyingGlass, Shuffle, Star, X } from "@phosphor-icons/react";
 import type { Kind, Piece, Ratio, Seat, Topic, Voice } from "../types";
 import { buildCaption, filterLibrary, kinds, library, topics } from "../data/library";
 import { motionById } from "../data/backgrounds";
@@ -33,9 +33,16 @@ function initialColourOpen() {
   }
 }
 
-function emptyLibraryCopy(savedOnly: boolean, query: string, savedCount: number) {
+function emptyLibraryCopy(savedOnly: boolean, freshOnly: boolean, query: string, savedCount: number) {
+  if (query.trim()) {
+    if (freshOnly && savedOnly) return "No unposted saved line matches that search.";
+    if (freshOnly) return "No unposted line matches that search.";
+    if (savedOnly) return "No saved line matches that search.";
+    return "No line matches that search.";
+  }
   if (savedOnly && savedCount === 0) return "Nothing saved yet. Star a line and it stays on this device.";
-  if (query.trim()) return savedOnly ? "No saved line matches that search." : "No line matches that search.";
+  if (freshOnly && savedOnly) return "No unposted saved line in this filter.";
+  if (freshOnly) return "Every line in this filter is marked posted.";
   if (savedOnly) return "No saved line in this filter.";
   return "No lines for this filter. Clear it, or write your own.";
 }
@@ -62,6 +69,8 @@ export function Studio() {
   const [seat, setSeat] = useState<Seat>(stored.seat);
   const [clear, setClear] = useState(stored.clear);
   const [guides, setGuides] = useState(stored.guides);
+  const [postedIds, setPostedIds] = useState<string[]>(stored.postedIds);
+  const [freshOnly, setFreshOnly] = useState(stored.freshOnly);
   const [copiedRun, setCopiedRun] = useState(false);
   const [videoReady, setVideoReady] = useState(0);
   const [undoCount, setUndoCount] = useState(0);
@@ -70,11 +79,13 @@ export function Studio() {
   const history = useRef<Piece[]>([]);
   const stepRef = useRef<(direction: 1 | -1) => void>(() => {});
   const undoRef = useRef<() => void>(() => {});
+  const postedRef = useRef<() => void>(() => {});
 
   const matches = useMemo(
-    () => filterLibrary(kind, topic, query, savedIds, savedOnly),
-    [kind, topic, query, savedIds, savedOnly],
+    () => filterLibrary(kind, topic, query, savedIds, savedOnly, postedIds, freshOnly),
+    [kind, topic, query, savedIds, savedOnly, postedIds, freshOnly],
   );
+  const unpostedCount = library.filter((piece) => !postedIds.includes(piece.id)).length;
   const theme = themeById(themeId);
   const ground = motionById(backgroundId);
   const pinned = tray.some((piece) => piece.id === draft.id);
@@ -108,6 +119,8 @@ export function Studio() {
         seat,
         clear,
         guides,
+        postedIds,
+        freshOnly,
       });
     }, 180);
     return () => window.clearTimeout(id);
@@ -128,6 +141,8 @@ export function Studio() {
     seat,
     clear,
     guides,
+    postedIds,
+    freshOnly,
   ]);
 
   function setColour(open: boolean) {
@@ -195,6 +210,20 @@ export function Studio() {
 
   function toggleSaved(id: string) {
     setSavedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
+  }
+
+  function togglePosted(id: string) {
+    if (!id || id === "custom") {
+      setNotice("Pin the line before marking it posted.");
+      return;
+    }
+    setPostedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id].slice(-400)));
+  }
+
+  function rememberPosted(ids: string[]) {
+    const next = ids.filter((id) => id && id !== "custom");
+    if (!next.length) return;
+    setPostedIds((current) => [...new Set([...current, ...next])].slice(-400));
   }
 
   function pinCurrent() {
@@ -266,6 +295,7 @@ export function Studio() {
   composeRef.current = compose;
   stepRef.current = step;
   undoRef.current = undo;
+  postedRef.current = () => togglePosted(draft.id);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -286,6 +316,11 @@ export function Studio() {
       if (key === "z") {
         event.preventDefault();
         undoRef.current();
+        return;
+      }
+      if (key === "p") {
+        event.preventDefault();
+        postedRef.current();
         return;
       }
       if (event.key === "ArrowDown" || event.key === "ArrowRight" || key === "j") {
@@ -343,8 +378,8 @@ export function Studio() {
             Faceless reminders, set in type.
           </h1>
           <p className="mt-4 max-w-[62ch] text-base leading-relaxed text-[var(--soft)]">
-            Pick an ayah, a hadith, or a short reminder. Pin a short run and play it as one reel.
-            The desk keeps the line when you come back.
+            Pick an ayah, a hadith, or a short reminder. Pin a short run and it fades from one line
+            into the next. Mark a line posted and the unposted shelf keeps the rest.
           </p>
         </div>
         <div className="flex flex-col items-start gap-3 md:items-end">
@@ -394,6 +429,9 @@ export function Studio() {
             ))}
             <FilterChip active={savedOnly} onClick={() => setSavedOnly((value) => !value)}>
               Saved{savedIds.length ? ` ${savedIds.length}` : ""}
+            </FilterChip>
+            <FilterChip active={freshOnly} onClick={() => setFreshOnly((value) => !value)}>
+              Unposted {unpostedCount}
             </FilterChip>
           </div>
 
@@ -504,7 +542,10 @@ export function Studio() {
                             : "border-[var(--line)] hover:bg-[var(--wash)]"
                         }`}
                       >
-                        <span className="text-[0.65rem] tabular-nums text-[var(--faint)]">{index + 1}</span>
+                        <span className="inline-flex items-center gap-1 text-[0.65rem] tabular-nums text-[var(--faint)]">
+                          {index + 1}
+                          {postedIds.includes(piece.id) && <CheckCircle size={12} weight="fill" />}
+                        </span>
                         <span className="mt-1 line-clamp-3 text-xs leading-relaxed text-[var(--ink)]">
                           {piece.english}
                         </span>
@@ -524,7 +565,7 @@ export function Studio() {
             )}
             {tray.filter((piece) => piece.english.trim()).length >= 2 && (
               <p className="mt-2 text-xs leading-relaxed text-[var(--faint)]">
-                Play run on the frame uses each of these lines for the length you chose.
+                Play run on the frame uses each of these lines for the length you chose. The type fades from one into the next.
               </p>
             )}
           </div>
@@ -538,7 +579,7 @@ export function Studio() {
             </div>
             {matches.length === 0 ? (
               <p className="pb-6 text-sm leading-relaxed text-[var(--soft)]">
-                {emptyLibraryCopy(savedOnly, query, savedIds.length)}
+                {emptyLibraryCopy(savedOnly, freshOnly, query, savedIds.length)}
               </p>
             ) : (
               <ul className="max-h-[340px] overflow-auto">
@@ -546,6 +587,7 @@ export function Studio() {
                   {matches.map((piece, index) => {
                     const active = piece.id === draft.id;
                     const saved = savedIds.includes(piece.id);
+                    const posted = postedIds.includes(piece.id);
                     return (
                       <motion.li
                         key={piece.id}
@@ -562,18 +604,31 @@ export function Studio() {
                           <span className="text-[0.65rem] tracking-[0.14em] text-[var(--accent)]">
                             {kindLabel[piece.kind]} · {topicLabel[piece.topic]}
                           </span>
-                          <span className="text-sm leading-relaxed text-[var(--ink)]">{piece.english}</span>
+                          <span className={`text-sm leading-relaxed ${posted && !active ? "text-[var(--soft)]" : "text-[var(--ink)]"}`}>
+                            {piece.english}
+                          </span>
                           <span className="text-xs text-[var(--faint)]">{piece.source}</span>
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => toggleSaved(piece.id)}
-                          aria-pressed={saved}
-                          aria-label={saved ? `Unsave ${piece.source}` : `Save ${piece.source}`}
-                          className="mt-3 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--accent)] hover:bg-[var(--wash)]"
-                        >
-                          <Star size={16} weight={saved ? "fill" : "regular"} />
-                        </button>
+                        <div className="mt-2 flex shrink-0 flex-col">
+                          <button
+                            type="button"
+                            onClick={() => toggleSaved(piece.id)}
+                            aria-pressed={saved}
+                            aria-label={saved ? `Unsave ${piece.source}` : `Save ${piece.source}`}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--accent)] hover:bg-[var(--wash)]"
+                          >
+                            <Star size={16} weight={saved ? "fill" : "regular"} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => togglePosted(piece.id)}
+                            aria-pressed={posted}
+                            aria-label={posted ? `Mark ${piece.source} unposted` : `Mark ${piece.source} posted`}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--accent)] hover:bg-[var(--wash)]"
+                          >
+                            <CheckCircle size={16} weight={posted ? "fill" : "regular"} />
+                          </button>
+                        </div>
                       </motion.li>
                     );
                   })}
@@ -714,6 +769,7 @@ export function Studio() {
             motion={ground}
             videoRef={videoRef}
             videoReady={videoReady}
+            onPosted={rememberPosted}
           />
         </section>
         <ColourPanel

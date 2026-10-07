@@ -28,6 +28,8 @@ export type DrawSpec = {
   seat?: Seat;
   clear?: boolean;
   plate?: Plate | null;
+  typeFade?: number;
+  pass?: "all" | "ground" | "type";
 };
 
 function textRoom(ratio: Ratio, clear: boolean) {
@@ -232,11 +234,19 @@ export function drawReminder(
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const drift = reduce ? 0 : t * w * 0.02;
   const alpha = layerAlpha(Math.min(1, Math.max(0, t)), useHook && Boolean(piece.hook.trim()));
+  const pass = spec.pass ?? "all";
+  const typeFade = Math.min(1, Math.max(0, spec.typeFade ?? 1));
+  const fade = (amount: number) => amount * typeFade;
   const hasPlate = Boolean(plate && plate.width > 1 && plate.height > 1);
   const ink = hasPlate && plate ? plate.ink : theme.ink;
   const muted = hasPlate && plate ? plate.muted : theme.muted;
   const rule = hasPlate && plate ? plate.rule : theme.rule;
 
+  const frameMargin = w * 0.105;
+  const room = textRoom(spec.ratio, Boolean(spec.clear));
+  const margin = w * room.side;
+
+  if (pass !== "type") {
   ctx.clearRect(0, 0, w, h);
   if (hasPlate && plate) {
     drawCover(ctx, plate.source, plate.width, plate.height, w, h);
@@ -300,21 +310,20 @@ export function drawReminder(
   ctx.fillStyle = vignette;
   ctx.fillRect(0, 0, w, h);
 
-  const frameMargin = w * 0.105;
-  const room = textRoom(spec.ratio, Boolean(spec.clear));
-  const margin = w * room.side;
   ctx.save();
   ctx.strokeStyle = rule;
   ctx.lineWidth = Math.max(2, w * 0.0035);
   ctx.strokeRect(frameMargin * 0.48, frameMargin * 0.48, w - frameMargin * 0.96, h - frameMargin * 0.96);
   ctx.restore();
+  }
+  if (pass === "ground" || typeFade <= 0) return;
 
   const maxWidth = w - margin * 2;
   const cx = w / 2;
 
-  if (alpha.hook > 0.01 && piece.hook.trim()) {
+  if (fade(alpha.hook) > 0.01 && piece.hook.trim()) {
     ctx.save();
-    ctx.globalAlpha = alpha.hook;
+    ctx.globalAlpha = fade(alpha.hook);
     ctx.translate(0, (1 - alpha.hook) * h * 0.012);
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
@@ -386,7 +395,7 @@ export function drawReminder(
   const rise = (amount: number) => (1 - amount) * h * 0.01;
 
   ctx.save();
-  ctx.globalAlpha = alpha.kicker;
+  ctx.globalAlpha = fade(alpha.kicker);
   ctx.translate(0, rise(alpha.kicker));
   ctx.font = `500 ${kickerSize * scale}px Outfit, sans-serif`;
   ctx.fillStyle = muted;
@@ -397,7 +406,7 @@ export function drawReminder(
 
   if (hasArabic) {
     ctx.save();
-    ctx.globalAlpha = alpha.arabic;
+    ctx.globalAlpha = fade(alpha.arabic);
     ctx.translate(0, rise(alpha.arabic));
     ctx.font = arabicFont(arabic.size * scale);
     ctx.fillStyle = ink;
@@ -408,7 +417,7 @@ export function drawReminder(
   }
 
   ctx.save();
-  ctx.globalAlpha = Math.max(alpha.arabic, alpha.english);
+  ctx.globalAlpha = fade(Math.max(alpha.arabic, alpha.english));
   ctx.fillStyle = rule;
   const d = ornament * 0.55 * scale;
   ctx.beginPath();
@@ -422,7 +431,7 @@ export function drawReminder(
   y += ornament * scale + gap * scale;
 
   ctx.save();
-  ctx.globalAlpha = piece.english.trim() ? alpha.english : 0.85;
+  ctx.globalAlpha = fade(piece.english.trim() ? alpha.english : 0.85);
   ctx.translate(0, rise(alpha.english));
   ctx.font = englishFont((piece.english.trim() ? english.size : w * 0.04) * scale);
   ctx.fillStyle = piece.english.trim() ? ink : muted;
@@ -442,15 +451,15 @@ export function drawReminder(
     : h - frameMargin * 1.15 - (showMark ? w * 0.06 : 0);
   ctx.strokeStyle = rule;
   ctx.lineWidth = 1.5;
-  ctx.globalAlpha = alpha.source * 0.8;
+  ctx.globalAlpha = fade(alpha.source * 0.8);
   ctx.beginPath();
   ctx.moveTo(cx - w * 0.08, sourceY - w * 0.03);
   ctx.lineTo(cx + w * 0.08, sourceY - w * 0.03);
   ctx.stroke();
-  ctx.globalAlpha = alpha.source;
+  ctx.globalAlpha = fade(alpha.source);
   ctx.fillText(source, cx, sourceY);
   if (showMark) {
-    ctx.globalAlpha = alpha.source * 0.7;
+    ctx.globalAlpha = fade(alpha.source * 0.7);
     ctx.font = `500 ${w * 0.02}px Outfit, sans-serif`;
     ctx.fillText("mihrab", cx, sourceY + w * 0.045);
   }

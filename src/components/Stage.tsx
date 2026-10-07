@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import {
   ArrowsIn,
   ArrowsOut,
+  CheckCircle,
   DownloadSimple,
   FilmStrip,
   Images,
@@ -21,8 +22,8 @@ import {
   downloadBlob,
   downloadStill,
   fileSlug,
-  placeInRun,
   recordReel,
+  runLayers,
   shareFile,
   shareStill,
   zipStore,
@@ -52,6 +53,7 @@ type Props = {
   motion: Motion | null;
   videoRef: RefObject<HTMLVideoElement | null>;
   videoReady: number;
+  onPosted: (ids: string[]) => void;
 };
 
 const ratios: Ratio[] = ["9:16", "4:5", "1:1"];
@@ -90,17 +92,21 @@ export function Stage({
   motion,
   videoRef,
   videoReady,
+  onPosted,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const lock = useRef(false);
+  const pausePaint = useRef(false);
   const [fontsReady, setFontsReady] = useState(false);
   const [mode, setMode] = useState<"off" | "line" | "run">("off");
   const [recording, setRecording] = useState<"off" | "line" | "run">("off");
   const [progress, setProgress] = useState(1);
+  const [held, setHeld] = useState<number | null>(null);
   const [runAt, setRunAt] = useState(-1);
   const [focused, setFocused] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [ready, setReady] = useState<{ blob: Blob; filename: string; text: string } | null>(null);
+  const [ready, setReady] = useState<{ blob: Blob; filename: string; text: string; ids: string[] } | null>(null);
+  const [markIds, setMarkIds] = useState<string[]>([]);
   const [shareNote, setShareNote] = useState("");
   const [error, setError] = useState("");
 
@@ -143,7 +149,11 @@ export function Stage({
     return { piece: item, theme, ratio, useHook, showMark, voice, seat, clear, plate: plate() };
   }
 
-  function paint(t: number, item: Piece = piece) {
+  function drawFrame(
+    t: number,
+    item: Piece = piece,
+    options?: { typeFade?: number; pass?: "all" | "ground" | "type" },
+  ) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const size = ratioSize[ratio];
@@ -153,7 +163,28 @@ export function Stage({
     }
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    drawReminder(ctx, specFor(item), t);
+    drawReminder(ctx, { ...specFor(item), typeFade: options?.typeFade, pass: options?.pass }, t);
+  }
+
+  function paint(t: number, item: Piece = piece) {
+    drawFrame(t, item);
+  }
+
+  function paintRun(t: number, sequence: Piece[]) {
+    const layers = runLayers(t, Math.max(1, sequence.length));
+    if (layers.length === 1) {
+      drawFrame(layers[0].local, sequence[layers[0].index] ?? piece, { typeFade: layers[0].fade });
+      return layers[0].index;
+    }
+    drawFrame(1, sequence[layers[0].index] ?? piece, { pass: "ground" });
+    for (const layer of layers) {
+      drawFrame(layer.local, sequence[layer.index] ?? piece, { typeFade: layer.fade, pass: "type" });
+    }
+    return layers[layers.length - 1].index;
+  }
+
+  function postableIds(sequence: Piece[]) {
+    return sequence.map((item) => item.id).filter((id) => id && id !== "custom");
   }
 
   useEffect(() => {
@@ -174,38 +205,37 @@ export function Stage({
     };
   }, []);
 
+  const pieceKey = `${piece.id}|${piece.english}|${piece.arabic}|${piece.hook}|${piece.source}`;
   useEffect(() => {
-    if (lock.current) return;
+    setHeld(null);
+  }, [pieceKey]);
+
+  useEffect(() => {
+    if (lock.current || pausePaint.current) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const size = ratioSize[ratio];
-    if (canvas.width !== size.w || canvas.height !== size.h) {
-      canvas.width = size.w;
-      canvas.height = size.h;
-    }
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const current = specFor(piece);
 
     if (mode === "off") {
+      const frameT = held ?? 1;
+      setProgress(frameT);
+      setRunAt(-1);
       const reduce =
         typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       if (motion && !reduce) {
         let frame = 0;
         let last = 0;
         const loop = (now: number) => {
+          if (pausePaint.current) return;
           if (!document.hidden && now - last > 32) {
             last = now;
-            drawReminder(ctx, specFor(piece), 1);
+            drawFrame(frameT, piece);
           }
           frame = requestAnimationFrame(loop);
         };
         frame = requestAnimationFrame(loop);
         return () => cancelAnimationFrame(frame);
       }
-      drawReminder(ctx, current, 1);
-      setProgress(1);
-      setRunAt(-1);
+      drawFrame(frameT, piece);
       return;
     }
 
@@ -216,13 +246,13 @@ export function Stage({
     let frame = 0;
     let shown = -1;
     const loop = (now: number) => {
+      if (pausePaint.current) return;
       const t = Math.min(1, (now - start) / totalMs);
-      const placed = placeInRun(t, mode === "run" ? count : 1);
-      drawReminder(ctx, { ...current, piece: sequence[placed.index] ?? piece }, placed.local);
+      const index = paintRun(t, sequence);
       setProgress(t);
-      if (mode === "run" && placed.index !== shown) {
-        shown = placed.index;
-        setRunAt(placed.index);
+      if (mode === "run" && index !== shown) {
+        shown = index;
+        setRunAt(index);
       }
       if (t < 1) frame = requestAnimationFrame(loop);
       else {
@@ -232,9 +262,9 @@ export function Stage({
     };
     frame = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frame);
-    // specFor reads the latest plate through signature
+    // drawFrame reads the latest plate through signature
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, duration, signature]);
+  }, [mode, duration, signature, held, recording, saving]);
 
   const canExport = Boolean(piece.english.trim());
   const runnable = run.filter((item) => item.english.trim());
@@ -279,21 +309,23 @@ export function Stage({
     setError("");
     setShareNote("");
     setReady(null);
+    setHeld(null);
     setMode("off");
+    pausePaint.current = true;
     lock.current = true;
     setRecording(sequence.length > 1 ? "run" : "line");
     const count = sequence.length;
+    const ids = postableIds(sequence);
     let shown = -1;
     try {
       const blob = await recordReel(
         canvas,
         (t) => {
-          const placed = placeInRun(t, count);
-          paint(placed.local, sequence[placed.index]);
+          const index = paintRun(t, sequence);
           setProgress(t);
-          if (count > 1 && placed.index !== shown) {
-            shown = placed.index;
-            setRunAt(placed.index);
+          if (count > 1 && index !== shown) {
+            shown = index;
+            setRunAt(index);
           }
         },
         duration * count * 1000,
@@ -301,8 +333,9 @@ export function Stage({
       const extension = blob.type.includes("mp4") ? "mp4" : "webm";
       const filename = count > 1 ? `mihrab-run.${extension}` : `mihrab-${slug}.${extension}`;
       const text = sequence.map((item) => buildCaption(item)).join("\n\n—\n\n");
+      setMarkIds(ids);
       if (canShareFile(blob.type)) {
-        setReady({ blob, filename, text });
+        setReady({ blob, filename, text, ids });
         setShareNote("Ready. Send opens Instagram, TikTok, WhatsApp, and the other apps on this phone.");
       } else {
         downloadBlob(blob, filename);
@@ -311,6 +344,7 @@ export function Stage({
     } catch {
       setError("This browser cannot record a reel. Download the still, then add sound in your editor.");
     } finally {
+      pausePaint.current = false;
       lock.current = false;
       setRecording("off");
       setRunAt(-1);
@@ -324,7 +358,7 @@ export function Stage({
     if (!canvas || !canExport || recording !== "off") return;
     setError("");
     setMode("off");
-    paint(1);
+    paint(held ?? 1);
     try {
       const result = await shareStill(canvas, `mihrab-${slug}.png`, buildCaption(piece));
       if (result === "shared") setShareNote("Shared the still. Paste the caption if the app asks for one.");
@@ -341,6 +375,8 @@ export function Stage({
     navigator.clipboard?.writeText(pending.text).catch(() => {});
     void shareFile(pending.blob, pending.filename, pending.text).then((result) => {
       if (result === "shared") {
+        if (pending.ids.length) onPosted(pending.ids);
+        setMarkIds([]);
         setReady(null);
         setShareNote("Sent. Paste the caption in the app if it did not travel with the video.");
       } else if (result === "saved") {
@@ -357,6 +393,7 @@ export function Stage({
     setError("");
     setShareNote("");
     setMode("off");
+    pausePaint.current = true;
     setSaving(true);
     try {
       const files: { name: string; data: Uint8Array }[] = [];
@@ -375,9 +412,25 @@ export function Stage({
     } catch {
       setError("The stills could not be packed. Download them one at a time.");
     } finally {
+      pausePaint.current = false;
       setSaving(false);
-      paint(1);
+      paint(held ?? 1);
     }
+  }
+
+  function seekTo(clientX: number, target: HTMLElement) {
+    if (mode !== "off" || busy) return;
+    const rect = target.getBoundingClientRect();
+    const next = rect.width <= 0 ? 1 : Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    setHeld(next);
+    setProgress(next);
+    paint(next);
+  }
+
+  function releaseFrame() {
+    setHeld(null);
+    setProgress(1);
+    paint(1);
   }
 
   return (
@@ -498,12 +551,56 @@ export function Stage({
           </p>
         </div>
 
-        <div className="h-0.5 w-full bg-[var(--line)]">
-          <div
-            className="h-0.5 origin-left bg-[var(--accent)]"
-            style={{ transform: `scaleX(${progress})` }}
-          />
+        <div
+          className={`relative h-4 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${mode === "off" && !busy ? "cursor-ew-resize" : ""}`}
+          role="slider"
+          tabIndex={mode === "off" && !busy ? 0 : -1}
+          aria-label="Poster moment"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(progress * 100)}
+          aria-disabled={mode !== "off" || busy}
+          onKeyDown={(event) => {
+            if (mode !== "off" || busy) return;
+            if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+            event.preventDefault();
+            event.stopPropagation();
+            const delta = event.key === "ArrowRight" ? 0.02 : -0.02;
+            const next = Math.min(1, Math.max(0, (held ?? 1) + delta));
+            setHeld(next);
+            setProgress(next);
+            paint(next);
+          }}
+          onPointerDown={(event) => {
+            if (mode !== "off" || busy) return;
+            seekTo(event.clientX, event.currentTarget);
+            try {
+              event.currentTarget.setPointerCapture(event.pointerId);
+            } catch {
+              /* the pointer can already be gone */
+            }
+          }}
+          onPointerMove={(event) => {
+            if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+            seekTo(event.clientX, event.currentTarget);
+          }}
+        >
+          <div className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2 bg-[var(--line)]">
+            <div
+              className="h-full origin-left bg-[var(--accent)]"
+              style={{ transform: `scaleX(${progress})` }}
+            />
+          </div>
         </div>
+        {held !== null && mode === "off" && (
+          <button
+            type="button"
+            onClick={releaseFrame}
+            className="self-start text-xs text-[var(--soft)] underline decoration-[var(--line)] underline-offset-4 hover:text-[var(--ink)]"
+          >
+            Release the frame
+          </button>
+        )}
 
         <div className="flex flex-wrap gap-2">
         <button
@@ -511,6 +608,7 @@ export function Stage({
           onClick={() => {
             setError("");
             setShareNote("");
+            setHeld(null);
             setMode((value) => (value === "line" ? "off" : "line"));
           }}
           disabled={!canExport || busy}
@@ -524,7 +622,7 @@ export function Stage({
             if (!canExport) return;
             setMode("off");
             setShareNote("");
-            paint(1);
+            paint(held ?? 1);
             const canvas = canvasRef.current;
             if (canvas) downloadStill(canvas, `mihrab-${slug}.png`);
           }}
@@ -565,6 +663,7 @@ export function Stage({
               }
               setError("");
               setShareNote("");
+              setHeld(null);
               setMode("run");
             }}
             disabled={busy}
@@ -593,6 +692,20 @@ export function Stage({
           >
             <ShareNetwork size={16} weight="regular" />
             Send
+          </button>
+        )}
+        {markIds.length > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              onPosted(markIds);
+              setMarkIds([]);
+              setShareNote("Marked posted on this device.");
+            }}
+            className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-4 py-2 text-sm text-[var(--ink)] transition-colors hover:bg-[var(--wash)] active:scale-[0.98]"
+          >
+            <CheckCircle size={16} weight="regular" />
+            Mark posted
           </button>
         )}
         {canRun && (
@@ -649,7 +762,7 @@ export function Stage({
         <p className="text-sm text-[var(--soft)]">Write the English line before you export.</p>
       )}
       <p className="text-xs leading-relaxed text-[var(--faint)]">
-        Send opens the share sheet, including Instagram, TikTok, and WhatsApp. The caption is copied so you can paste it. The reel is silent. Clear of the buttons keeps the type inside a Reel.
+        Send opens the share sheet, including Instagram, TikTok, and WhatsApp. The caption is copied so you can paste it. A run fades from one line into the next. Drag the bar under the frame to hold a moment, then save that still. The reel is silent. Clear of the buttons keeps the type inside a Reel.
       </p>
       </div>
     </div>
