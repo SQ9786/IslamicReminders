@@ -22,6 +22,8 @@ export type Piece = {
 
 export type Ratio = "9:16" | "4:5" | "1:1";
 
+export type Voice = "even" | "arabic" | "english";
+
 export type Shell = {
   light: boolean;
   page: string;

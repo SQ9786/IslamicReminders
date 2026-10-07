@@ -7,10 +7,47 @@ export function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+export function canvasPng(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("png"));
+    }, "image/png");
+  });
+}
+
 export function downloadStill(canvas: HTMLCanvasElement, filename: string) {
   canvas.toBlob((blob) => {
     if (blob) downloadBlob(blob, filename);
   }, "image/png");
+}
+
+export async function shareStill(canvas: HTMLCanvasElement, filename: string, title: string) {
+  const blob = await canvasPng(canvas);
+  const file = new File([blob], filename, { type: "image/png" });
+  const canShare =
+    typeof navigator.share === "function" &&
+    (typeof navigator.canShare !== "function" || navigator.canShare({ files: [file] }));
+  if (!canShare) {
+    downloadBlob(blob, filename);
+    return "saved" as const;
+  }
+  try {
+    await navigator.share({ files: [file], title });
+    return "shared" as const;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") return "cancelled" as const;
+    downloadBlob(blob, filename);
+    return "saved" as const;
+  }
+}
+
+export function placeInRun(t: number, count: number) {
+  if (count <= 1) return { index: 0, local: t };
+  if (t >= 1) return { index: count - 1, local: 1 };
+  const scaled = t * count;
+  const index = Math.min(count - 1, Math.floor(scaled));
+  return { index, local: scaled - index };
 }
 
 function supportedMime(): string | null {

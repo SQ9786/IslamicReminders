@@ -1,13 +1,14 @@
 import { motions } from "../data/backgrounds";
 import { library, topics } from "../data/library";
 import { themes } from "../data/themes";
-import type { Kind, Piece, Ratio, Topic } from "../types";
+import type { Kind, Piece, Ratio, Topic, Voice } from "../types";
 
 const KEY = "mihrab-desk";
 
 const kindFilters = new Set<Kind | "all">(["all", "ayah", "hadith", "reminder"]);
 const topicFilters = new Set<string>(["all", ...topics.map((item) => item.id)]);
 const ratios = new Set<Ratio>(["9:16", "4:5", "1:1"]);
+const voices = new Set<Voice>(["even", "arabic", "english"]);
 const durations = new Set([6, 9, 12]);
 const libraryIds = new Set(library.map((piece) => piece.id));
 
@@ -24,6 +25,7 @@ export type Desk = {
   savedOnly: boolean;
   tray: Piece[];
   backgroundId: string | null;
+  voice: Voice;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -60,6 +62,7 @@ export function defaultDesk(): Desk {
     savedOnly: false,
     tray: [],
     backgroundId: motions[0].id,
+    voice: "even",
   };
 }
 
@@ -90,6 +93,7 @@ export function loadDesk(): Desk {
       savedOnly: data.savedOnly === true,
       tray,
       backgroundId: backgroundFrom(data.backgroundId),
+      voice: voices.has(data.voice as Voice) ? (data.voice as Voice) : base.voice,
     };
   } catch {
     return base;

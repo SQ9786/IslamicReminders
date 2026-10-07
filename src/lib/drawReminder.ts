@@ -1,5 +1,5 @@
 import { kickerFor } from "../data/library";
-import type { Piece, Ratio, Theme } from "../types";
+import type { Piece, Ratio, Theme, Voice } from "../types";
 
 export const ratioSize: Record<Ratio, { w: number; h: number }> = {
   "9:16": { w: 1080, h: 1920 },
@@ -24,6 +24,7 @@ export type DrawSpec = {
   ratio: Ratio;
   useHook: boolean;
   showMark: boolean;
+  voice?: Voice;
   plate?: Plate | null;
 };
 
@@ -197,6 +198,18 @@ function drawLines(
   return lines.length * lineHeight;
 }
 
+function typeCaps(voice: Voice, arabic: string, english: string) {
+  const longArabic = arabic.trim().length > 80;
+  const longEnglish = english.trim().length > 140;
+  if (voice === "arabic") {
+    return { arabic: longArabic ? 0.06 : 0.084, english: longEnglish ? 0.032 : 0.036 };
+  }
+  if (voice === "english") {
+    return { arabic: longArabic ? 0.04 : 0.046, english: longEnglish ? 0.048 : 0.06 };
+  }
+  return { arabic: longArabic ? 0.052 : 0.068, english: longEnglish ? 0.04 : 0.048 };
+}
+
 export function drawReminder(
   ctx: CanvasRenderingContext2D,
   spec: DrawSpec,
@@ -204,6 +217,7 @@ export function drawReminder(
 ) {
   const { w, h } = ratioSize[spec.ratio];
   const { theme, piece, useHook, showMark, plate } = spec;
+  const voice = spec.voice ?? "even";
   const reduce =
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -321,23 +335,16 @@ export function drawReminder(
   const arabicFont = (size: number) => `700 ${size}px Amiri, "Geeza Pro", serif`;
   const englishFont = (size: number) => `560 ${size}px Fraunces, Georgia, serif`;
   const hasArabic = Boolean(piece.arabic.trim());
+  const caps = typeCaps(voice, piece.arabic, piece.english);
 
   ctx.font = arabicFont(w * 0.07);
   const arabic = hasArabic
-    ? fit(ctx, piece.arabic, maxWidth, arabicFont, w * (hasArabic && piece.arabic.length > 80 ? 0.052 : 0.068), w * 0.034, 6)
+    ? fit(ctx, piece.arabic, maxWidth, arabicFont, w * caps.arabic, w * 0.034, 6)
     : { size: 0, lines: [] as string[] };
 
   ctx.font = englishFont(w * 0.046);
   const english = piece.english.trim()
-    ? fit(
-        ctx,
-        piece.english,
-        maxWidth,
-        englishFont,
-        w * (piece.english.length > 140 ? 0.04 : 0.048),
-        w * 0.03,
-        8,
-      )
+    ? fit(ctx, piece.english, maxWidth, englishFont, w * caps.english, w * 0.03, 8)
     : { size: 0, lines: ["Write a line to begin."] };
 
   const arabicLeading = arabic.size * 1.45;

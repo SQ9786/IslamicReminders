@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { BookmarkSimple, Check, Copy, MagnifyingGlass, Shuffle, Star, X } from "@phosphor-icons/react";
-import type { Kind, Piece, Ratio, Topic } from "../types";
+import { ArrowUUpLeft, BookmarkSimple, Check, Copy, MagnifyingGlass, Shuffle, Star, X } from "@phosphor-icons/react";
+import type { Kind, Piece, Ratio, Topic, Voice } from "../types";
 import { buildCaption, filterLibrary, kinds, library, topics } from "../data/library";
 import { motionById } from "../data/backgrounds";
 import { shellVars, themeById } from "../data/themes";
@@ -58,9 +58,14 @@ export function Studio() {
   const [copied, setCopied] = useState(false);
   const [colourOpen, setColourOpen] = useState(initialColourOpen);
   const [backgroundId, setBackgroundId] = useState<string | null>(stored.backgroundId);
+  const [voice, setVoice] = useState<Voice>(stored.voice);
   const [videoReady, setVideoReady] = useState(0);
+  const [undoCount, setUndoCount] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const history = useRef<Piece[]>([]);
+  const stepRef = useRef<(direction: 1 | -1) => void>(() => {});
+  const undoRef = useRef<() => void>(() => {});
 
   const matches = useMemo(
     () => filterLibrary(kind, topic, query, savedIds, savedOnly),
@@ -95,10 +100,11 @@ export function Studio() {
         savedOnly,
         tray,
         backgroundId,
+        voice,
       });
     }, 180);
     return () => window.clearTimeout(id);
-  }, [draft, kind, topic, themeId, ratio, duration, useHook, showMark, savedIds, savedOnly, tray, backgroundId]);
+  }, [draft, kind, topic, themeId, ratio, duration, useHook, showMark, savedIds, savedOnly, tray, backgroundId, voice]);
 
   function setColour(open: boolean) {
     setColourOpen(open);
@@ -109,6 +115,44 @@ export function Studio() {
     }
   }
 
+  function samePiece(a: Piece, b: Piece) {
+    return (
+      a.id === b.id &&
+      a.kind === b.kind &&
+      a.topic === b.topic &&
+      a.arabic === b.arabic &&
+      a.english === b.english &&
+      a.source === b.source &&
+      a.hook === b.hook
+    );
+  }
+
+  function replaceDraft(next: Piece) {
+    if (samePiece(draft, next)) return;
+    history.current = [...history.current, draft].slice(-24);
+    setUndoCount(history.current.length);
+    setDraft({ ...next });
+    setNotice("");
+    setCopied(false);
+  }
+
+  function undo() {
+    const previous = history.current.pop();
+    setUndoCount(history.current.length);
+    if (!previous) return;
+    setDraft(previous);
+    setNotice("");
+    setCopied(false);
+  }
+
+  function step(direction: 1 | -1) {
+    if (!matches.length) return;
+    const index = matches.findIndex((item) => item.id === draft.id);
+    const start = index < 0 ? (direction > 0 ? -1 : 0) : index;
+    const next = matches[(start + direction + matches.length) % matches.length];
+    replaceDraft(next);
+  }
+
   function compose() {
     const pool = matches.filter((piece) => piece.id !== draft.id);
     const choices = pool.length ? pool : matches;
@@ -117,9 +161,7 @@ export function Studio() {
       return;
     }
     const next = choices[Math.floor(Math.random() * choices.length)];
-    setDraft({ ...next });
-    setNotice("");
-    setCopied(false);
+    replaceDraft(next);
   }
 
   function update(partial: Partial<Piece>) {
@@ -158,13 +200,11 @@ export function Studio() {
   }
 
   function openPiece(piece: Piece) {
-    setDraft({ ...piece });
-    setNotice("");
-    setCopied(false);
+    replaceDraft(piece);
   }
 
   function writeOwn() {
-    setDraft({
+    replaceDraft({
       id: "custom",
       kind: "reminder",
       topic: topic === "all" ? "hope" : topic,
@@ -173,8 +213,6 @@ export function Studio() {
       source: "A reminder",
       hook: "Read this slowly.",
     });
-    setNotice("");
-    setCopied(false);
   }
 
   async function copyCaption() {
@@ -190,6 +228,8 @@ export function Studio() {
 
   const composeRef = useRef(compose);
   composeRef.current = compose;
+  stepRef.current = step;
+  undoRef.current = undo;
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -201,9 +241,25 @@ export function Studio() {
         searchRef.current?.focus();
         return;
       }
-      if (event.key.toLowerCase() === "c") {
+      const key = event.key.toLowerCase();
+      if (key === "c") {
         event.preventDefault();
         composeRef.current();
+        return;
+      }
+      if (key === "z") {
+        event.preventDefault();
+        undoRef.current();
+        return;
+      }
+      if (event.key === "ArrowDown" || event.key === "ArrowRight" || key === "j") {
+        event.preventDefault();
+        stepRef.current(1);
+        return;
+      }
+      if (event.key === "ArrowUp" || event.key === "ArrowLeft" || key === "k") {
+        event.preventDefault();
+        stepRef.current(-1);
       }
     }
     window.addEventListener("keydown", onKey);
@@ -251,8 +307,8 @@ export function Studio() {
             Faceless reminders, set in type.
           </h1>
           <p className="mt-4 max-w-[62ch] text-base leading-relaxed text-[var(--soft)]">
-            Pick an ayah, a hadith, or a short reminder. Search the library, pin a short run, and
-            the desk keeps the line when you come back.
+            Pick an ayah, a hadith, or a short reminder. Pin a short run and play it as one reel.
+            The desk keeps the line when you come back.
           </p>
         </div>
         <div className="flex flex-col items-start gap-3 md:items-end">
@@ -262,7 +318,9 @@ export function Studio() {
             <span className="mx-2 text-[var(--line)]">/</span>
             C composes
             <span className="mx-2 text-[var(--line)]">/</span>
-            slash searches
+            Z undoes
+            <span className="mx-2 text-[var(--line)]">/</span>
+            arrows step
           </p>
         </div>
       </header>
@@ -352,6 +410,15 @@ export function Studio() {
             </button>
             <button
               type="button"
+              onClick={undo}
+              disabled={undoCount === 0}
+              className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-4 py-2.5 text-sm text-[var(--ink)] transition-colors hover:bg-[var(--wash)] active:scale-[0.98] disabled:opacity-40"
+            >
+              <ArrowUUpLeft size={16} weight="regular" />
+              Undo
+            </button>
+            <button
+              type="button"
               onClick={pinCurrent}
               className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-4 py-2.5 text-sm text-[var(--ink)] transition-colors hover:bg-[var(--wash)] active:scale-[0.98]"
             >
@@ -372,7 +439,7 @@ export function Studio() {
             </div>
             {tray.length === 0 ? (
               <p className="mt-2 text-sm leading-relaxed text-[var(--faint)]">
-                Pin the line you are setting. Seven stay on this device.
+                Pin the line you are setting. Seven stay on this device, and two or more play as one reel.
               </p>
             ) : (
               <ul className="mt-3 flex gap-2 overflow-x-auto pb-1">
@@ -406,6 +473,11 @@ export function Studio() {
                   );
                 })}
               </ul>
+            )}
+            {tray.filter((piece) => piece.english.trim()).length >= 2 && (
+              <p className="mt-2 text-xs leading-relaxed text-[var(--faint)]">
+                Play run on the frame uses each of these lines for the length you chose.
+              </p>
             )}
           </div>
 
@@ -576,6 +648,9 @@ export function Studio() {
             }}
             onHook={setUseHook}
             onMark={setShowMark}
+            voice={voice}
+            onVoice={setVoice}
+            run={tray}
             motion={ground}
             videoRef={videoRef}
             videoReady={videoReady}
