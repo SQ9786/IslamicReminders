@@ -1,6 +1,19 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowUUpLeft, BookmarkSimple, Check, CheckCircle, Copy, MagnifyingGlass, Shuffle, Star, X } from "@phosphor-icons/react";
+import {
+  ArrowRight,
+  ArrowUUpLeft,
+  BookmarkSimple,
+  CaretLeft,
+  CaretRight,
+  Check,
+  CheckCircle,
+  Copy,
+  MagnifyingGlass,
+  Shuffle,
+  Star,
+  X,
+} from "@phosphor-icons/react";
 import type { Kind, Piece, Ratio, Seat, Topic, Voice } from "../types";
 import { buildCaption, filterLibrary, kinds, library, topics } from "../data/library";
 import { motionById } from "../data/backgrounds";
@@ -80,12 +93,15 @@ export function Studio() {
   const stepRef = useRef<(direction: 1 | -1) => void>(() => {});
   const undoRef = useRef<() => void>(() => {});
   const postedRef = useRef<() => void>(() => {});
+  const nextRef = useRef<() => void>(() => {});
 
   const matches = useMemo(
     () => filterLibrary(kind, topic, query, savedIds, savedOnly, postedIds, freshOnly),
     [kind, topic, query, savedIds, savedOnly, postedIds, freshOnly],
   );
   const unpostedCount = library.filter((piece) => !postedIds.includes(piece.id)).length;
+  const caption = draft.english.trim() ? buildCaption(draft) : "";
+  const runCount = tray.filter((piece) => piece.english.trim()).length;
   const theme = themeById(themeId);
   const ground = motionById(backgroundId);
   const pinned = tray.some((piece) => piece.id === draft.id);
@@ -193,7 +209,8 @@ export function Studio() {
   }
 
   function compose() {
-    const pool = matches.filter((piece) => piece.id !== draft.id);
+    const unposted = matches.filter((piece) => !postedIds.includes(piece.id) && piece.id !== draft.id);
+    const pool = unposted.length ? unposted : matches.filter((piece) => piece.id !== draft.id);
     const choices = pool.length ? pool : matches;
     if (!choices.length) {
       setNotice("Nothing in the library matches these filters. Clear one, or write your own line.");
@@ -201,6 +218,31 @@ export function Studio() {
     }
     const next = choices[Math.floor(Math.random() * choices.length)];
     replaceDraft(next);
+  }
+
+  function nextUnposted() {
+    const pool = matches.filter((piece) => !postedIds.includes(piece.id));
+    if (!pool.length) {
+      setNotice("Every line in this filter is marked posted.");
+      return;
+    }
+    const index = pool.findIndex((item) => item.id === draft.id);
+    if (pool.length === 1 && index === 0) {
+      setNotice("This is the only unposted line in the filter.");
+      return;
+    }
+    replaceDraft(pool[(index + 1) % pool.length]);
+  }
+
+  function movePin(index: number, direction: -1 | 1) {
+    setTray((current) => {
+      const target = index + direction;
+      if (target < 0 || target >= current.length) return current;
+      const copy = current.slice();
+      const [item] = copy.splice(index, 1);
+      copy.splice(target, 0, item);
+      return copy;
+    });
   }
 
   function update(partial: Partial<Piece>) {
@@ -296,6 +338,7 @@ export function Studio() {
   stepRef.current = step;
   undoRef.current = undo;
   postedRef.current = () => togglePosted(draft.id);
+  nextRef.current = nextUnposted;
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -321,6 +364,11 @@ export function Studio() {
       if (key === "p") {
         event.preventDefault();
         postedRef.current();
+        return;
+      }
+      if (key === "n") {
+        event.preventDefault();
+        nextRef.current();
         return;
       }
       if (event.key === "ArrowDown" || event.key === "ArrowRight" || key === "j") {
@@ -388,6 +436,8 @@ export function Studio() {
             <span className="tabular-nums">{library.length}</span> lines
             <span className="mx-2 text-[var(--line)]">/</span>
             C composes
+            <span className="mx-2 text-[var(--line)]">/</span>
+            N next
             <span className="mx-2 text-[var(--line)]">/</span>
             Z undoes
             <span className="mx-2 text-[var(--line)]">/</span>
@@ -477,6 +527,14 @@ export function Studio() {
             </MagneticButton>
             <button
               type="button"
+              onClick={nextUnposted}
+              className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-4 py-2.5 text-sm text-[var(--ink)] transition-colors hover:bg-[var(--wash)] active:scale-[0.98]"
+            >
+              <ArrowRight size={16} weight="regular" />
+              Next
+            </button>
+            <button
+              type="button"
               onClick={writeOwn}
               className="rounded-full border border-[var(--line)] px-4 py-2.5 text-sm text-[var(--ink)] transition-colors hover:bg-[var(--wash)] active:scale-[0.98]"
             >
@@ -536,7 +594,9 @@ export function Studio() {
                       <button
                         type="button"
                         onClick={() => openPiece(piece)}
-                        className={`flex h-full w-full flex-col rounded-2xl border px-3 py-2 pr-7 text-left transition-colors active:scale-[0.98] ${
+                        className={`flex h-full w-full flex-col rounded-2xl border px-3 pt-2 pr-7 text-left transition-colors active:scale-[0.98] ${
+                          tray.length > 1 ? "pb-8" : "pb-2"
+                        } ${
                           active
                             ? "border-[var(--accent)] bg-[var(--wash)]"
                             : "border-[var(--line)] hover:bg-[var(--wash)]"
@@ -550,6 +610,28 @@ export function Studio() {
                           {piece.english}
                         </span>
                       </button>
+                      {tray.length > 1 && (
+                        <div className="absolute bottom-1.5 left-1.5 flex gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => movePin(index, -1)}
+                            disabled={index === 0}
+                            aria-label={`Move line ${index + 1} earlier`}
+                            className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--field)] text-[var(--soft)] hover:bg-[var(--wash)] disabled:opacity-30"
+                          >
+                            <CaretLeft size={12} weight="regular" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => movePin(index, 1)}
+                            disabled={index === tray.length - 1}
+                            aria-label={`Move line ${index + 1} later`}
+                            className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--field)] text-[var(--soft)] hover:bg-[var(--wash)] disabled:opacity-30"
+                          >
+                            <CaretRight size={12} weight="regular" />
+                          </button>
+                        </div>
+                      )}
                       <button
                         type="button"
                         onClick={() => setTray((current) => current.filter((item) => item.id !== piece.id))}
@@ -563,9 +645,9 @@ export function Studio() {
                 })}
               </ul>
             )}
-            {tray.filter((piece) => piece.english.trim()).length >= 2 && (
+            {runCount >= 2 && (
               <p className="mt-2 text-xs leading-relaxed text-[var(--faint)]">
-                Play run on the frame uses each of these lines for the length you chose. The type fades from one into the next.
+                This run is {runCount * duration}s. Move a pin to change the order. The type fades from one line into the next.
               </p>
             )}
           </div>
@@ -713,9 +795,18 @@ export function Studio() {
               />
             </label>
             <div className="flex items-start justify-between gap-4">
-              <p className="max-w-[48ch] text-sm leading-relaxed whitespace-pre-wrap text-[var(--soft)]">
-                {draft.english.trim() ? buildCaption(draft) : "The caption appears here."}
-              </p>
+              <div className="min-w-0">
+                <p className="max-w-[48ch] text-sm leading-relaxed whitespace-pre-wrap text-[var(--soft)]">
+                  {caption || "The caption appears here."}
+                </p>
+                {caption && (
+                  <p
+                    className={`mt-2 text-xs tabular-nums ${caption.length > 2200 ? "text-[var(--danger)]" : "text-[var(--faint)]"}`}
+                  >
+                    {caption.length.toLocaleString()} / 2,200
+                  </p>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={copyCaption}
