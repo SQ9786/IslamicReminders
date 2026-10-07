@@ -22,24 +22,60 @@ export function downloadStill(canvas: HTMLCanvasElement, filename: string) {
   }, "image/png");
 }
 
-export async function shareStill(canvas: HTMLCanvasElement, filename: string, title: string) {
-  const blob = await canvasPng(canvas);
-  const file = new File([blob], filename, { type: "image/png" });
-  const canShare =
-    typeof navigator.share === "function" &&
-    (typeof navigator.canShare !== "function" || navigator.canShare({ files: [file] }));
-  if (!canShare) {
-    downloadBlob(blob, filename);
-    return "saved" as const;
-  }
+export type ShareResult = "shared" | "saved" | "cancelled";
+
+export function canShareFile(type: string) {
+  if (typeof navigator.share !== "function" || typeof navigator.canShare !== "function") return false;
+  const name = type.includes("mp4") ? "mihrab.mp4" : type.includes("png") ? "mihrab.png" : "mihrab.webm";
   try {
-    await navigator.share({ files: [file], title });
-    return "shared" as const;
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") return "cancelled" as const;
-    downloadBlob(blob, filename);
-    return "saved" as const;
+    return navigator.canShare({ files: [new File([new Blob([""], { type })], name, { type })] });
+  } catch {
+    return false;
   }
+}
+
+function shareData(file: File, text: string): ShareData | null {
+  if (typeof navigator.share !== "function") return null;
+  const title = "Mihrab";
+  const withText: ShareData = { files: [file], title, text };
+  const filesOnly: ShareData = { files: [file], title };
+  try {
+    if (typeof navigator.canShare !== "function" || navigator.canShare(withText)) return withText;
+    if (navigator.canShare(filesOnly)) return filesOnly;
+  } catch {
+    return filesOnly;
+  }
+  return null;
+}
+
+export function shareFile(blob: Blob, filename: string, text: string): Promise<ShareResult> {
+  const file = new File([blob], filename, { type: blob.type || "application/octet-stream" });
+  const data = shareData(file, text);
+  if (!data || typeof navigator.share !== "function") {
+    downloadBlob(blob, filename);
+    return Promise.resolve("saved");
+  }
+  const finish = (error: unknown): ShareResult | Promise<ShareResult> => {
+    if (error instanceof DOMException && error.name === "AbortError") return "cancelled";
+    if (data.text && typeof navigator.share === "function") {
+      return navigator.share({ files: [file], title: "Mihrab" }).then(
+        () => "shared" as const,
+        (again: unknown) => {
+          if (again instanceof DOMException && again.name === "AbortError") return "cancelled";
+          downloadBlob(blob, filename);
+          return "saved";
+        },
+      );
+    }
+    downloadBlob(blob, filename);
+    return "saved";
+  };
+  return navigator.share(data).then(() => "shared" as const, finish);
+}
+
+export async function shareStill(canvas: HTMLCanvasElement, filename: string, text: string) {
+  const blob = await canvasPng(canvas);
+  return shareFile(blob, filename, text);
 }
 
 function crc32(data: Uint8Array) {
@@ -112,10 +148,28 @@ export function placeInRun(t: number, count: number) {
   return { index, local: scaled - index };
 }
 
-function supportedMime(): string | null {
+const reelTypes = [
+  "video/mp4;codecs=avc1.42E01E",
+  "video/mp4",
+  "video/webm;codecs=vp9",
+  "video/webm;codecs=vp8",
+  "video/webm",
+];
+
+function openRecorder(stream: MediaStream) {
   if (typeof MediaRecorder === "undefined") return null;
-  const types = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
-  return types.find((type) => MediaRecorder.isTypeSupported(type)) ?? null;
+  for (const mime of reelTypes) {
+    if (!MediaRecorder.isTypeSupported(mime)) continue;
+    try {
+      return {
+        mime,
+        recorder: new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8_000_000 }),
+      };
+    } catch {
+      /* this mime is listed but cannot record a silent canvas */
+    }
+  }
+  return null;
 }
 
 export function recordReel(
@@ -123,16 +177,15 @@ export function recordReel(
   draw: (t: number) => void,
   durationMs: number,
 ): Promise<Blob> {
-  const mime = supportedMime();
-  if (!mime) return Promise.reject(new Error("unsupported"));
-
   return new Promise((resolve, reject) => {
     draw(0);
     const stream = canvas.captureStream(30);
-    const recorder = new MediaRecorder(stream, {
-      mimeType: mime,
-      videoBitsPerSecond: 8_000_000,
-    });
+    const opened = openRecorder(stream);
+    if (!opened) {
+      reject(new Error("unsupported"));
+      return;
+    }
+    const { mime, recorder } = opened;
     const chunks: Blob[] = [];
     recorder.ondataavailable = (event) => {
       if (event.data.size) chunks.push(event.data);

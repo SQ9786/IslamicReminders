@@ -12,9 +12,21 @@ import {
   Stack,
 } from "@phosphor-icons/react";
 import type { Motion } from "../data/backgrounds";
+import { buildCaption } from "../data/library";
 import type { Piece, Ratio, Seat, Theme, Voice } from "../types";
 import { drawReminder, ratioSize, type DrawSpec, type Plate } from "../lib/drawReminder";
-import { canvasPng, downloadBlob, downloadStill, fileSlug, placeInRun, recordReel, shareStill, zipStore } from "../lib/exportMedia";
+import {
+  canShareFile,
+  canvasPng,
+  downloadBlob,
+  downloadStill,
+  fileSlug,
+  placeInRun,
+  recordReel,
+  shareFile,
+  shareStill,
+  zipStore,
+} from "../lib/exportMedia";
 import { MagneticButton } from "./MagneticButton";
 
 type Props = {
@@ -88,6 +100,7 @@ export function Stage({
   const [runAt, setRunAt] = useState(-1);
   const [focused, setFocused] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [ready, setReady] = useState<{ blob: Blob; filename: string; text: string } | null>(null);
   const [shareNote, setShareNote] = useState("");
   const [error, setError] = useState("");
 
@@ -265,6 +278,7 @@ export function Stage({
     if (!canvas || sequence.length === 0 || recording !== "off") return;
     setError("");
     setShareNote("");
+    setReady(null);
     setMode("off");
     lock.current = true;
     setRecording(sequence.length > 1 ? "run" : "line");
@@ -284,7 +298,16 @@ export function Stage({
         },
         duration * count * 1000,
       );
-      downloadBlobSafe(blob, count > 1 ? "mihrab-run.webm" : `mihrab-${slug}.webm`);
+      const extension = blob.type.includes("mp4") ? "mp4" : "webm";
+      const filename = count > 1 ? `mihrab-run.${extension}` : `mihrab-${slug}.${extension}`;
+      const text = sequence.map((item) => buildCaption(item)).join("\n\n—\n\n");
+      if (canShareFile(blob.type)) {
+        setReady({ blob, filename, text });
+        setShareNote("Ready. Send opens Instagram, TikTok, WhatsApp, and the other apps on this phone.");
+      } else {
+        downloadBlob(blob, filename);
+        setShareNote("Saved the reel. Open it from your camera roll to post.");
+      }
     } catch {
       setError("This browser cannot record a reel. Download the still, then add sound in your editor.");
     } finally {
@@ -303,13 +326,29 @@ export function Stage({
     setMode("off");
     paint(1);
     try {
-      const result = await shareStill(canvas, `mihrab-${slug}.png`, piece.source || "Mihrab");
-      if (result === "shared") setShareNote("Shared the still.");
+      const result = await shareStill(canvas, `mihrab-${slug}.png`, buildCaption(piece));
+      if (result === "shared") setShareNote("Shared the still. Paste the caption if the app asks for one.");
       if (result === "saved") setShareNote("Saved the still.");
       if (result === "cancelled") setShareNote("");
     } catch {
       setError("The still could not be shared. Download it instead.");
     }
+  }
+
+  function onSend() {
+    if (!ready) return;
+    const pending = ready;
+    navigator.clipboard?.writeText(pending.text).catch(() => {});
+    void shareFile(pending.blob, pending.filename, pending.text).then((result) => {
+      if (result === "shared") {
+        setReady(null);
+        setShareNote("Sent. Paste the caption in the app if it did not travel with the video.");
+      } else if (result === "saved") {
+        setShareNote("Saved the reel.");
+      } else {
+        setShareNote("");
+      }
+    });
   }
 
   async function onSaveStills() {
@@ -546,6 +585,16 @@ export function Stage({
             {recording === "run" ? "Recording…" : "Save run"}
           </button>
         )}
+        {ready && (
+          <button
+            type="button"
+            onClick={onSend}
+            className="inline-flex items-center gap-2 rounded-full bg-[var(--accent)] px-4 py-2 text-sm text-[var(--accent-ink)] active:scale-[0.98]"
+          >
+            <ShareNetwork size={16} weight="regular" />
+            Send
+          </button>
+        )}
         {canRun && (
           <button
             type="button"
@@ -600,18 +649,10 @@ export function Stage({
         <p className="text-sm text-[var(--soft)]">Write the English line before you export.</p>
       )}
       <p className="text-xs leading-relaxed text-[var(--faint)]">
-        The reel is silent. Clear of the buttons keeps the type inside a Reel, and the edges are only a preview. A run plays each pinned line for the length you chose.
+        Send opens the share sheet, including Instagram, TikTok, and WhatsApp. The caption is copied so you can paste it. The reel is silent. Clear of the buttons keeps the type inside a Reel.
       </p>
       </div>
     </div>
   );
 }
 
-function downloadBlobSafe(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
-}
