@@ -4,6 +4,7 @@ import {
   ArrowsOut,
   DownloadSimple,
   FilmStrip,
+  Images,
   ImageSquare,
   Pause,
   Play,
@@ -11,9 +12,9 @@ import {
   Stack,
 } from "@phosphor-icons/react";
 import type { Motion } from "../data/backgrounds";
-import type { Piece, Ratio, Theme, Voice } from "../types";
+import type { Piece, Ratio, Seat, Theme, Voice } from "../types";
 import { drawReminder, ratioSize, type DrawSpec, type Plate } from "../lib/drawReminder";
-import { downloadStill, fileSlug, placeInRun, recordReel, shareStill } from "../lib/exportMedia";
+import { canvasPng, downloadBlob, downloadStill, fileSlug, placeInRun, recordReel, shareStill, zipStore } from "../lib/exportMedia";
 import { MagneticButton } from "./MagneticButton";
 
 type Props = {
@@ -29,6 +30,12 @@ type Props = {
   onMark: (value: boolean) => void;
   voice: Voice;
   onVoice: (voice: Voice) => void;
+  seat: Seat;
+  onSeat: (seat: Seat) => void;
+  clear: boolean;
+  onClear: (value: boolean) => void;
+  guides: boolean;
+  onGuides: (value: boolean) => void;
   run: Piece[];
   motion: Motion | null;
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -41,6 +48,11 @@ const voiceOptions: { id: Voice; label: string }[] = [
   { id: "even", label: "Even" },
   { id: "arabic", label: "Arabic" },
   { id: "english", label: "English" },
+];
+const seatOptions: { id: Seat; label: string }[] = [
+  { id: "high", label: "High" },
+  { id: "mid", label: "Mid" },
+  { id: "low", label: "Low" },
 ];
 
 export function Stage({
@@ -56,6 +68,12 @@ export function Stage({
   onMark,
   voice,
   onVoice,
+  seat,
+  onSeat,
+  clear,
+  onClear,
+  guides,
+  onGuides,
   run,
   motion,
   videoRef,
@@ -69,6 +87,7 @@ export function Stage({
   const [progress, setProgress] = useState(1);
   const [runAt, setRunAt] = useState(-1);
   const [focused, setFocused] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [shareNote, setShareNote] = useState("");
   const [error, setError] = useState("");
 
@@ -84,6 +103,8 @@ export function Stage({
     useHook,
     showMark,
     voice,
+    seat,
+    clear,
     fontsReady,
     motion?.id ?? "still",
     videoReady,
@@ -106,7 +127,7 @@ export function Stage({
   }
 
   function specFor(item: Piece): DrawSpec {
-    return { piece: item, theme, ratio, useHook, showMark, voice, plate: plate() };
+    return { piece: item, theme, ratio, useHook, showMark, voice, seat, clear, plate: plate() };
   }
 
   function paint(t: number, item: Piece = piece) {
@@ -206,7 +227,7 @@ export function Stage({
   const runnable = run.filter((item) => item.english.trim());
   const canRun = runnable.length >= 2;
   const canShare = typeof navigator.share === "function";
-  const busy = recording !== "off";
+  const busy = recording !== "off" || saving;
   const slug = fileSlug(piece.source || piece.english.slice(0, 24));
   const size = ratioSize[ratio];
   const frameWidth = focused
@@ -291,6 +312,35 @@ export function Stage({
     }
   }
 
+  async function onSaveStills() {
+    const canvas = canvasRef.current;
+    if (!canvas || !canRun || busy) return;
+    setError("");
+    setShareNote("");
+    setMode("off");
+    setSaving(true);
+    try {
+      const files: { name: string; data: Uint8Array }[] = [];
+      for (let index = 0; index < runnable.length; index++) {
+        const item = runnable[index];
+        paint(1, item);
+        const blob = await canvasPng(canvas);
+        const slugName = fileSlug(item.source || item.english.slice(0, 24));
+        files.push({
+          name: `mihrab-${String(index + 1).padStart(2, "0")}-${slugName}.png`,
+          data: new Uint8Array(await blob.arrayBuffer()),
+        });
+      }
+      downloadBlob(zipStore(files), "mihrab-stills.zip");
+      setShareNote(`Saved ${files.length} stills.`);
+    } catch {
+      setError("The stills could not be packed. Download them one at a time.");
+    } finally {
+      setSaving(false);
+      paint(1);
+    }
+  }
+
   return (
     <div
       className={
@@ -356,6 +406,24 @@ export function Stage({
         </button>
       </div>
 
+      <div className="flex w-full max-w-[440px] flex-wrap items-center justify-between gap-3">
+        <div className="flex rounded-full border border-[var(--line)] p-1" role="group" aria-label="Seat">
+          {seatOptions.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onSeat(item.id)}
+              aria-pressed={seat === item.id}
+              className={`rounded-full px-3 py-1 text-xs transition-colors ${
+                seat === item.id ? "bg-[var(--wash)] text-[var(--ink)]" : "text-[var(--soft)] hover:text-[var(--ink)]"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="mx-auto flex w-full flex-col gap-3" style={{ width: frameWidth }}>
         <div className="relative">
           {!fontsReady && (
@@ -366,11 +434,18 @@ export function Stage({
             />
           )}
           <div
-            className={`overflow-hidden rounded-[1.4rem] shadow-[0_30px_70px_-24px_rgba(20,16,12,0.45)] ring-1 ring-[var(--line)] transition-opacity duration-500 ${
+            className={`relative overflow-hidden rounded-[1.4rem] shadow-[0_30px_70px_-24px_rgba(20,16,12,0.45)] ring-1 ring-[var(--line)] transition-opacity duration-500 ${
               fontsReady ? "opacity-100" : "opacity-0"
             }`}
           >
             <canvas ref={canvasRef} className="block h-auto w-full" />
+            {guides && ratio === "9:16" && (
+              <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+                <div className="absolute inset-x-0 top-0 h-[14%] border-b border-dashed border-[var(--ink)]/30 bg-[var(--ink)]/10" />
+                <div className="absolute top-[14%] right-0 bottom-[18%] w-[12%] border-l border-dashed border-[var(--ink)]/30 bg-[var(--ink)]/10" />
+                <div className="absolute inset-x-0 bottom-0 h-[18%] border-t border-dashed border-[var(--ink)]/30 bg-[var(--ink)]/10" />
+              </div>
+            )}
           </div>
         </div>
 
@@ -471,9 +546,20 @@ export function Stage({
             {recording === "run" ? "Recording…" : "Save run"}
           </button>
         )}
+        {canRun && (
+          <button
+            type="button"
+            onClick={onSaveStills}
+            disabled={busy}
+            className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-4 py-2 text-sm text-[var(--ink)] transition-colors hover:bg-[var(--wash)] active:scale-[0.98] disabled:opacity-40"
+          >
+            <Images size={16} weight="regular" />
+            {saving ? "Packing…" : "Save stills"}
+          </button>
+        )}
         </div>
 
-      <div className="flex gap-4 text-xs text-[var(--soft)]">
+      <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-[var(--soft)]">
         <label className="inline-flex items-center gap-2">
           <input
             type="checkbox"
@@ -489,6 +575,14 @@ export function Stage({
             onChange={(event) => onMark(event.target.checked)}
           />
           Mark Mihrab
+        </label>
+        <label className="inline-flex items-center gap-2">
+          <input type="checkbox" checked={clear} onChange={(event) => onClear(event.target.checked)} />
+          Clear of the buttons
+        </label>
+        <label className="inline-flex items-center gap-2">
+          <input type="checkbox" checked={guides} onChange={(event) => onGuides(event.target.checked)} />
+          Show reel edges
         </label>
       </div>
 
@@ -506,7 +600,7 @@ export function Stage({
         <p className="text-sm text-[var(--soft)]">Write the English line before you export.</p>
       )}
       <p className="text-xs leading-relaxed text-[var(--faint)]">
-        The reel is silent. A run plays each pinned line for the length you chose. Add recitation or a nasheed in your editor before you post.
+        The reel is silent. Clear of the buttons keeps the type inside a Reel, and the edges are only a preview. A run plays each pinned line for the length you chose.
       </p>
       </div>
     </div>

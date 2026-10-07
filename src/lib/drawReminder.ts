@@ -1,5 +1,5 @@
 import { kickerFor } from "../data/library";
-import type { Piece, Ratio, Theme, Voice } from "../types";
+import type { Piece, Ratio, Seat, Theme, Voice } from "../types";
 
 export const ratioSize: Record<Ratio, { w: number; h: number }> = {
   "9:16": { w: 1080, h: 1920 },
@@ -25,8 +25,17 @@ export type DrawSpec = {
   useHook: boolean;
   showMark: boolean;
   voice?: Voice;
+  seat?: Seat;
+  clear?: boolean;
   plate?: Plate | null;
 };
+
+function textRoom(ratio: Ratio, clear: boolean) {
+  if (!clear) return { top: 0.12, bottom: 0.16, side: 0.105 };
+  if (ratio === "9:16") return { top: 0.2, bottom: 0.24, side: 0.16 };
+  if (ratio === "4:5") return { top: 0.14, bottom: 0.18, side: 0.13 };
+  return { top: 0.13, bottom: 0.16, side: 0.13 };
+}
 
 function drawCover(
   ctx: CanvasRenderingContext2D,
@@ -291,11 +300,13 @@ export function drawReminder(
   ctx.fillStyle = vignette;
   ctx.fillRect(0, 0, w, h);
 
-  const margin = w * 0.105;
+  const frameMargin = w * 0.105;
+  const room = textRoom(spec.ratio, Boolean(spec.clear));
+  const margin = w * room.side;
   ctx.save();
   ctx.strokeStyle = rule;
   ctx.lineWidth = Math.max(2, w * 0.0035);
-  ctx.strokeRect(margin * 0.48, margin * 0.48, w - margin * 0.96, h - margin * 0.96);
+  ctx.strokeRect(frameMargin * 0.48, frameMargin * 0.48, w - frameMargin * 0.96, h - frameMargin * 0.96);
   ctx.restore();
 
   const maxWidth = w - margin * 2;
@@ -362,13 +373,15 @@ export function drawReminder(
     gap +
     englishBlock;
 
-  const sourceRoom = h * 0.16;
-  const topLimit = h * 0.12;
+  const sourceRoom = h * room.bottom;
+  const topLimit = h * room.top;
   const available = h - topLimit - sourceRoom;
   let scale = stack > available ? available / stack : 1;
   scale = Math.max(0.72, Math.min(1, scale));
 
-  let y = topLimit + Math.max(0, (available - stack * scale) / 2);
+  const seat = spec.seat ?? "mid";
+  const bias = seat === "high" ? 0.06 : seat === "low" ? 0.82 : 0.5;
+  let y = topLimit + Math.max(0, (available - stack * scale) * bias);
 
   const rise = (amount: number) => (1 - amount) * h * 0.01;
 
@@ -424,7 +437,9 @@ export function drawReminder(
   ctx.fillStyle = muted;
   ctx.direction = "ltr";
   ctx.textAlign = "center";
-  const sourceY = h - margin * 1.15 - (showMark ? w * 0.06 : 0);
+  const sourceY = spec.clear
+    ? h * (1 - room.bottom) + w * 0.012 - (showMark ? w * 0.04 : 0)
+    : h - frameMargin * 1.15 - (showMark ? w * 0.06 : 0);
   ctx.strokeStyle = rule;
   ctx.lineWidth = 1.5;
   ctx.globalAlpha = alpha.source * 0.8;

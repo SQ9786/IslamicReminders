@@ -1,7 +1,7 @@
 import { motions } from "../data/backgrounds";
 import { library, topics } from "../data/library";
 import { themes } from "../data/themes";
-import type { Kind, Piece, Ratio, Topic, Voice } from "../types";
+import type { Kind, Piece, Ratio, Seat, Topic, Voice } from "../types";
 
 const KEY = "mihrab-desk";
 
@@ -9,6 +9,7 @@ const kindFilters = new Set<Kind | "all">(["all", "ayah", "hadith", "reminder"])
 const topicFilters = new Set<string>(["all", ...topics.map((item) => item.id)]);
 const ratios = new Set<Ratio>(["9:16", "4:5", "1:1"]);
 const voices = new Set<Voice>(["even", "arabic", "english"]);
+const seats = new Set<Seat>(["high", "mid", "low"]);
 const durations = new Set([6, 9, 12]);
 const libraryIds = new Set(library.map((piece) => piece.id));
 
@@ -26,6 +27,9 @@ export type Desk = {
   tray: Piece[];
   backgroundId: string | null;
   voice: Voice;
+  seat: Seat;
+  clear: boolean;
+  guides: boolean;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -63,6 +67,9 @@ export function defaultDesk(): Desk {
     tray: [],
     backgroundId: motions[0].id,
     voice: "even",
+    seat: "mid",
+    clear: false,
+    guides: false,
   };
 }
 
@@ -94,6 +101,9 @@ export function loadDesk(): Desk {
       tray,
       backgroundId: backgroundFrom(data.backgroundId),
       voice: voices.has(data.voice as Voice) ? (data.voice as Voice) : base.voice,
+      seat: seats.has(data.seat as Seat) ? (data.seat as Seat) : base.seat,
+      clear: data.clear === true,
+      guides: data.guides === true,
     };
   } catch {
     return base;

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowUUpLeft, BookmarkSimple, Check, Copy, MagnifyingGlass, Shuffle, Star, X } from "@phosphor-icons/react";
-import type { Kind, Piece, Ratio, Topic, Voice } from "../types";
+import type { Kind, Piece, Ratio, Seat, Topic, Voice } from "../types";
 import { buildCaption, filterLibrary, kinds, library, topics } from "../data/library";
 import { motionById } from "../data/backgrounds";
 import { shellVars, themeById } from "../data/themes";
@@ -59,6 +59,10 @@ export function Studio() {
   const [colourOpen, setColourOpen] = useState(initialColourOpen);
   const [backgroundId, setBackgroundId] = useState<string | null>(stored.backgroundId);
   const [voice, setVoice] = useState<Voice>(stored.voice);
+  const [seat, setSeat] = useState<Seat>(stored.seat);
+  const [clear, setClear] = useState(stored.clear);
+  const [guides, setGuides] = useState(stored.guides);
+  const [copiedRun, setCopiedRun] = useState(false);
   const [videoReady, setVideoReady] = useState(0);
   const [undoCount, setUndoCount] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -101,10 +105,30 @@ export function Studio() {
         tray,
         backgroundId,
         voice,
+        seat,
+        clear,
+        guides,
       });
     }, 180);
     return () => window.clearTimeout(id);
-  }, [draft, kind, topic, themeId, ratio, duration, useHook, showMark, savedIds, savedOnly, tray, backgroundId, voice]);
+  }, [
+    draft,
+    kind,
+    topic,
+    themeId,
+    ratio,
+    duration,
+    useHook,
+    showMark,
+    savedIds,
+    savedOnly,
+    tray,
+    backgroundId,
+    voice,
+    seat,
+    clear,
+    guides,
+  ]);
 
   function setColour(open: boolean) {
     setColourOpen(open);
@@ -221,6 +245,18 @@ export function Studio() {
       await navigator.clipboard.writeText(buildCaption(draft));
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setNotice("Clipboard is blocked in this browser. Select the caption and copy it yourself.");
+    }
+  }
+
+  async function copyRunCaptions() {
+    const lines = tray.filter((piece) => piece.english.trim());
+    if (!lines.length) return;
+    try {
+      await navigator.clipboard.writeText(lines.map((piece) => buildCaption(piece)).join("\n\n—\n\n"));
+      setCopiedRun(true);
+      window.setTimeout(() => setCopiedRun(false), 1600);
     } catch {
       setNotice("Clipboard is blocked in this browser. Select the caption and copy it yourself.");
     }
@@ -433,9 +469,21 @@ export function Studio() {
           )}
 
           <div className="mt-6">
-            <div className="flex items-baseline justify-between">
+            <div className="flex items-baseline justify-between gap-3">
               <p className="text-sm text-[var(--ink)]">Pinned</p>
-              <p className="text-xs tabular-nums text-[var(--faint)]">{tray.length}/7</p>
+              <div className="flex items-center gap-3">
+                {tray.some((piece) => piece.english.trim()) && (
+                  <button
+                    type="button"
+                    onClick={copyRunCaptions}
+                    className="inline-flex items-center gap-1.5 text-xs text-[var(--soft)] hover:text-[var(--ink)]"
+                  >
+                    {copiedRun ? <Check size={14} weight="regular" /> : <Copy size={14} weight="regular" />}
+                    {copiedRun ? "Copied" : "Copy captions"}
+                  </button>
+                )}
+                <p className="text-xs tabular-nums text-[var(--faint)]">{tray.length}/7</p>
+              </div>
             </div>
             {tray.length === 0 ? (
               <p className="mt-2 text-sm leading-relaxed text-[var(--faint)]">
@@ -631,6 +679,12 @@ export function Studio() {
             trusted collection before you post it as scripture. Lines marked Reminder are original.
             Do not attribute them to the Qur'an or the Prophet, peace be upon him.
           </p>
+          <a
+            href="mailto:creator@tadhkeer.space"
+            className="mt-4 inline-block text-xs tracking-wide text-[var(--faint)] underline decoration-[var(--line)] underline-offset-4 hover:text-[var(--ink)]"
+          >
+            creator@tadhkeer.space
+          </a>
         </section>
 
         <section className="order-1 flex flex-col gap-3 lg:sticky lg:top-8 lg:order-2">
@@ -650,6 +704,12 @@ export function Studio() {
             onMark={setShowMark}
             voice={voice}
             onVoice={setVoice}
+            seat={seat}
+            onSeat={setSeat}
+            clear={clear}
+            onClear={setClear}
+            guides={guides}
+            onGuides={setGuides}
             run={tray}
             motion={ground}
             videoRef={videoRef}

@@ -24,6 +24,8 @@ export type Ratio = "9:16" | "4:5" | "1:1";
 
 export type Voice = "even" | "arabic" | "english";
 
+export type Seat = "high" | "mid" | "low";
+
 export type Shell = {
   light: boolean;
   page: string;
