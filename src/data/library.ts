@@ -9,6 +9,12 @@ export const topics: { id: Topic; label: string }[] = [
   { id: "gratitude", label: "Gratitude" },
   { id: "hope", label: "Hope" },
   { id: "time", label: "Time" },
+  { id: "forgiveness", label: "Forgiveness" },
+  { id: "knowledge", label: "Knowledge" },
+  { id: "speech", label: "Speech" },
+  { id: "sincerity", label: "Sincerity" },
+  { id: "family", label: "Family" },
+  { id: "hereafter", label: "Hereafter" },
 ];
 
 export const kinds: { id: Kind | "all"; label: string }[] = [
@@ -226,7 +232,7 @@ export const library: Piece[] = [
   {
     id: "bukhari-muslim-speech",
     kind: "hadith",
-    topic: "character",
+    topic: "speech",
     arabic: "مَنْ كَانَ يُؤْمِنُ بِاللَّهِ وَالْيَوْمِ الْآخِرِ فَلْيَقُلْ خَيْرًا أَوْ لِيَصْمُتْ",
     english:
       "Whoever believes in Allah and the Last Day, let him speak good or stay silent.",
@@ -245,7 +251,7 @@ export const library: Piece[] = [
   {
     id: "bukhari-muslim-intent",
     kind: "hadith",
-    topic: "character",
+    topic: "sincerity",
     arabic: "إِنَّمَا الْأَعْمَالُ بِالنِّيَّاتِ",
     english: "Actions are judged by intentions.",
     source: "Bukhari and Muslim",
@@ -310,7 +316,7 @@ export const library: Piece[] = [
   {
     id: "rem-speech",
     kind: "reminder",
-    topic: "character",
+    topic: "speech",
     arabic: "",
     english: "Speak if it helps. If it does not, leave it unsaid.",
     source: "A reminder",
@@ -328,7 +334,7 @@ export const library: Piece[] = [
   {
     id: "rem-quran",
     kind: "reminder",
-    topic: "time",
+    topic: "knowledge",
     arabic: "",
     english: "Five minutes of Qur'an will do more than an hour of worry.",
     source: "A reminder",
@@ -364,7 +370,7 @@ export const library: Piece[] = [
   {
     id: "rem-repent",
     kind: "reminder",
-    topic: "mercy",
+    topic: "forgiveness",
     arabic: "",
     english: "Repent before you rehearse the excuse.",
     source: "A reminder",
@@ -379,7 +385,176 @@ export const library: Piece[] = [
     source: "A reminder",
     hook: "Guard the glance.",
   },
+  {
+    id: "rem-learn",
+    kind: "reminder",
+    topic: "knowledge",
+    arabic: "",
+    english: "Learn one thing you can live today. Leave the rest for tomorrow.",
+    source: "A reminder",
+    hook: "One lesson, then practice.",
+  },
+  {
+    id: "rem-forgive",
+    kind: "reminder",
+    topic: "forgiveness",
+    arabic: "",
+    english: "Ask to be forgiven before you explain yourself.",
+    source: "A reminder",
+    hook: "Return first.",
+  },
+  {
+    id: "rem-intention",
+    kind: "reminder",
+    topic: "sincerity",
+    arabic: "",
+    english: "Check the reason before the action. A good deed with a crooked aim still misses.",
+    source: "A reminder",
+    hook: "The aim is part of the deed.",
+  },
+  {
+    id: "rem-family",
+    kind: "reminder",
+    topic: "family",
+    arabic: "",
+    english: "The people in your house are the first place your character shows.",
+    source: "A reminder",
+    hook: "Start the kindness at home.",
+  },
+  {
+    id: "rem-parents",
+    kind: "reminder",
+    topic: "family",
+    arabic: "",
+    english: "A soft word to a parent is a deed you can do today.",
+    source: "A reminder",
+    hook: "Call them before the day ends.",
+  },
+  {
+    id: "rem-hereafter",
+    kind: "reminder",
+    topic: "hereafter",
+    arabic: "",
+    english: "This day is short. The next life is the long one.",
+    source: "A reminder",
+    hook: "Live the hour you have.",
+  },
+  {
+    id: "rem-account",
+    kind: "reminder",
+    topic: "hereafter",
+    arabic: "",
+    english: "What you hide from people is still written.",
+    source: "A reminder",
+    hook: "The private deed counts.",
+  },
 ];
+
+const quranNote =
+  "The English on the poster is a short rendering for Tadhkeer, not a published translation. Quran.com shows the Arabic and published translations.";
+const bukhariNote =
+  "The English on the poster is a short rendering, not Dr. Muhsin Khan’s translation. Sunnah.com shows Khan’s English beside the Arabic.";
+const muslimNote =
+  "The English on the poster is a short rendering, not Abdul Hamid Siddiqui’s translation. Sunnah.com shows that English beside the Arabic.";
+const bothNote =
+  "The English on the poster is a short rendering. Sunnah.com shows Dr. Muhsin Khan’s Bukhari translation and Abdul Hamid Siddiqui’s Muslim translation.";
+const tirmidhiNote =
+  "The English on the poster is a short rendering of part of a longer hadith. Read the published translation on Sunnah.com.";
+const reminderNote =
+  "An original reminder written for Tadhkeer. Do not attribute it to the Qur’an or the Prophet, peace be upon him.";
+
+const verified: Record<string, { source?: string; sourceUrl?: string; attribution: string }> = {
+  "sharh-94-6": { sourceUrl: "https://quran.com/94/6", attribution: quranNote },
+  "baqarah-2-153": { sourceUrl: "https://quran.com/2/153", attribution: quranNote },
+  "baqarah-2-286": { sourceUrl: "https://quran.com/2/286", attribution: quranNote },
+  "baqarah-2-45": { sourceUrl: "https://quran.com/2/45", attribution: quranNote },
+  "baqarah-2-152": { sourceUrl: "https://quran.com/2/152", attribution: quranNote },
+  "baqarah-2-186": { sourceUrl: "https://quran.com/2/186", attribution: quranNote },
+  "rad-13-28": { sourceUrl: "https://quran.com/13/28", attribution: quranNote },
+  "zumar-39-53": { sourceUrl: "https://quran.com/39/53", attribution: quranNote },
+  "araf-7-156": { sourceUrl: "https://quran.com/7/156", attribution: quranNote },
+  "ghafir-40-60": { sourceUrl: "https://quran.com/40/60", attribution: quranNote },
+  "talaq-65-3": { sourceUrl: "https://quran.com/65/3", attribution: quranNote },
+  "hadid-57-4": { sourceUrl: "https://quran.com/57/4", attribution: quranNote },
+  "duha-93-7": { sourceUrl: "https://quran.com/93/7", attribution: quranNote },
+  "ibrahim-14-7": { sourceUrl: "https://quran.com/14/7", attribution: quranNote },
+  "hujurat-49-13": { sourceUrl: "https://quran.com/49/13", attribution: quranNote },
+  "rahman-55-13": { sourceUrl: "https://quran.com/55/13", attribution: quranNote },
+  "asr-103": { sourceUrl: "https://quran.com/103", attribution: quranNote },
+  "bukhari-character": {
+    source: "Sahih al-Bukhari 6035",
+    sourceUrl: "https://sunnah.com/bukhari:6035",
+    attribution: bukhariNote,
+  },
+  "bukhari-muslim-brother": {
+    source: "Bukhari 13 · Muslim 45",
+    sourceUrl: "https://sunnah.com/bukhari:13",
+    attribution: bothNote,
+  },
+  "bukhari-ease": {
+    source: "Sahih al-Bukhari 69",
+    sourceUrl: "https://sunnah.com/bukhari:69",
+    attribution: bukhariNote,
+  },
+  "tirmidhi-camel": {
+    source: "Jami' at-Tirmidhi 2517",
+    sourceUrl: "https://sunnah.com/tirmidhi:2517",
+    attribution:
+      "The English on the poster is a short rendering. Tirmidhi called this narration gharib, and one of its narrators called it munkar. Read the entry on Sunnah.com before you share it as established.",
+  },
+  "muslim-strong": {
+    source: "Sahih Muslim 2664",
+    sourceUrl: "https://sunnah.com/muslim:2664",
+    attribution: muslimNote,
+  },
+  "bukhari-muslim-speech": {
+    source: "Bukhari 6018 · Muslim 47",
+    sourceUrl: "https://sunnah.com/bukhari:6018",
+    attribution: bothNote,
+  },
+  "tirmidhi-smile": {
+    source: "Jami' at-Tirmidhi 1956",
+    sourceUrl: "https://sunnah.com/tirmidhi:1956",
+    attribution: tirmidhiNote,
+  },
+  "bukhari-muslim-intent": {
+    source: "Bukhari 1 · Muslim 1907",
+    sourceUrl: "https://sunnah.com/bukhari:1",
+    attribution: bothNote,
+  },
+  "muslim-beauty": {
+    source: "Sahih Muslim 91",
+    sourceUrl: "https://sunnah.com/muslim:91",
+    attribution:
+      "The English on the poster is one line from a longer hadith about pride and beauty, not Abdul Hamid Siddiqui’s full translation. Read the whole entry on Sunnah.com.",
+  },
+  "bukhari-muslim-steady": {
+    source: "Bukhari 6464 · Muslim 782",
+    sourceUrl: "https://sunnah.com/bukhari:6464",
+    attribution: bothNote,
+  },
+  "tirmidhi-concern": {
+    source: "Jami' at-Tirmidhi 2317",
+    sourceUrl: "https://sunnah.com/tirmidhi:2317",
+    attribution: tirmidhiNote,
+  },
+  "tirmidhi-taqwa": {
+    source: "Jami' at-Tirmidhi 1987",
+    sourceUrl: "https://sunnah.com/tirmidhi:1987",
+    attribution: tirmidhiNote,
+  },
+};
+
+for (const piece of library) {
+  const extra = verified[piece.id];
+  if (extra) {
+    if (extra.source) piece.source = extra.source;
+    piece.sourceUrl = extra.sourceUrl;
+    piece.attribution = extra.attribution;
+  } else if (piece.kind === "reminder") {
+    piece.attribution = reminderNote;
+  }
+}
 
 export function kickerFor(kind: Kind): string {
   if (kind === "ayah") return "QUR'AN";
@@ -424,6 +599,12 @@ const topicTag: Record<Topic, string> = {
   gratitude: "#shukr",
   hope: "#yaqeen",
   time: "#deen",
+  forgiveness: "#tawbah",
+  knowledge: "#ilm",
+  speech: "#speech",
+  sincerity: "#niyyah",
+  family: "#family",
+  hereafter: "#akhirah",
 };
 
 export function buildCaption(piece: Piece): string {

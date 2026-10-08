@@ -8,7 +8,13 @@ export type Topic =
   | "character"
   | "gratitude"
   | "hope"
-  | "time";
+  | "time"
+  | "forgiveness"
+  | "knowledge"
+  | "speech"
+  | "sincerity"
+  | "family"
+  | "hereafter";
 
 export type Piece = {
   id: string;
@@ -18,6 +24,8 @@ export type Piece = {
   english: string;
   source: string;
   hook: string;
+  sourceUrl?: string;
+  attribution?: string;
 };
 
 export type Ratio = "9:16" | "4:5" | "1:1";

@@ -3,6 +3,7 @@ import {
   ArrowsIn,
   ArrowsOut,
   CheckCircle,
+  DeviceMobile,
   DownloadSimple,
   FilmStrip,
   Images,
@@ -56,18 +57,19 @@ type Props = {
   videoRef: RefObject<HTMLVideoElement | null>;
   videoReady: number;
   onPosted: (ids: string[]) => void;
+  advanced?: boolean;
 };
 
 const ratios: Ratio[] = ["9:16", "4:5", "1:1"];
 const durations = [6, 9, 12];
 const voiceOptions: { id: Voice; label: string }[] = [
   { id: "even", label: "Even" },
-  { id: "arabic", label: "Arabic" },
-  { id: "english", label: "English" },
+  { id: "arabic", label: "Arabic larger" },
+  { id: "english", label: "English larger" },
 ];
 const seatOptions: { id: Seat; label: string }[] = [
   { id: "high", label: "High" },
-  { id: "mid", label: "Mid" },
+  { id: "mid", label: "Middle" },
   { id: "low", label: "Low" },
 ];
 
@@ -97,6 +99,7 @@ export function Stage({
   videoRef,
   videoReady,
   onPosted,
+  advanced = true,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const lock = useRef(false);
@@ -113,6 +116,7 @@ export function Stage({
   const [markIds, setMarkIds] = useState<string[]>([]);
   const [shareNote, setShareNote] = useState("");
   const [error, setError] = useState("");
+  const [phone, setPhone] = useState(false);
 
   const signature = [
     piece.kind,
@@ -284,11 +288,13 @@ export function Stage({
       : ratio === "4:5"
         ? "min(92vw, calc(78dvh * 4 / 5))"
         : "min(92vw, 78dvh)"
-    : ratio === "9:16"
-      ? "min(100%, 440px, calc(62dvh * 9 / 16))"
-      : ratio === "4:5"
-        ? "min(100%, 440px, calc(62dvh * 4 / 5))"
-        : "min(100%, 440px, 62dvh)";
+    : phone
+      ? "min(100%, 280px)"
+      : ratio === "9:16"
+        ? "min(100%, 440px, calc(62dvh * 9 / 16))"
+        : ratio === "4:5"
+          ? "min(100%, 440px, calc(62dvh * 4 / 5))"
+          : "min(100%, 440px, 62dvh)";
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -336,7 +342,7 @@ export function Stage({
         duration * count * 1000,
       );
       const extension = blob.type.includes("mp4") ? "mp4" : "webm";
-      const filename = count > 1 ? `mihrab-run.${extension}` : `mihrab-${slug}.${extension}`;
+      const filename = count > 1 ? `tadhkeer-run.${extension}` : `tadhkeer-${slug}.${extension}`;
       const text = sequence.map((item) => buildCaption(item)).join("\n\n—\n\n");
       setMarkIds(ids);
       if (canShareFile(blob.type)) {
@@ -365,7 +371,7 @@ export function Stage({
     setMode("off");
     paint(held ?? 1);
     try {
-      const result = await shareStill(canvas, `mihrab-${slug}.png`, buildCaption(piece));
+      const result = await shareStill(canvas, `tadhkeer-${slug}.png`, buildCaption(piece));
       if (result === "shared") setShareNote("Shared the still. Paste the caption if the app asks for one.");
       if (result === "saved") setShareNote("Saved the still.");
       if (result === "cancelled") setShareNote("");
@@ -408,11 +414,11 @@ export function Stage({
         const blob = await canvasPng(canvas);
         const slugName = fileSlug(item.source || item.english.slice(0, 24));
         files.push({
-          name: `mihrab-${String(index + 1).padStart(2, "0")}-${slugName}.png`,
+          name: `tadhkeer-${String(index + 1).padStart(2, "0")}-${slugName}.png`,
           data: new Uint8Array(await blob.arrayBuffer()),
         });
       }
-      downloadBlob(zipStore(files), "mihrab-stills.zip");
+      downloadBlob(zipStore(files), "tadhkeer-stills.zip");
       setShareNote(`Saved ${files.length} stills.`);
     } catch {
       setError("The stills could not be packed. Download them one at a time.");
@@ -446,72 +452,99 @@ export function Stage({
           : "flex flex-col gap-4"
       }
     >
-      <div className="flex w-full max-w-[440px] flex-wrap items-center justify-between gap-3">
-        <div className="flex rounded-full border border-[var(--line)] p-1">
-          {ratios.map((item) => (
-            <button
-              key={item}
-              type="button"
-              onClick={() => onRatio(item)}
-              className={`rounded-full px-3 py-1 text-xs tracking-wide transition-colors ${
-                ratio === item ? "bg-[var(--accent)] text-[var(--accent-ink)]" : "text-[var(--soft)] hover:text-[var(--ink)]"
-              }`}
-            >
-              {item}
-            </button>
-          ))}
+      <div className="flex w-full max-w-[440px] flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="mb-2 text-sm text-[var(--ink)]">Frame</p>
+          <div className="flex rounded-full border border-[var(--line)] p-1" role="group" aria-label="Frame">
+            {ratios.map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => onRatio(item)}
+                className={`rounded-full px-3 py-1 text-sm tracking-wide transition-colors ${
+                  ratio === item ? "bg-[var(--accent)] text-[var(--accent-ink)]" : "text-[var(--soft)] hover:text-[var(--ink)]"
+                }`}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="flex rounded-full border border-[var(--line)] p-1">
-          {durations.map((seconds) => (
-            <button
-              key={seconds}
-              type="button"
-              onClick={() => onDuration(seconds)}
-              className={`rounded-full px-3 py-1 text-xs tabular-nums transition-colors ${
-                duration === seconds ? "bg-[var(--wash)] text-[var(--ink)]" : "text-[var(--soft)] hover:text-[var(--ink)]"
-              }`}
-            >
-              {seconds}s
-            </button>
-          ))}
+        <div>
+          <p className="mb-2 text-sm text-[var(--ink)]">Reel length</p>
+          <div className="flex rounded-full border border-[var(--line)] p-1" role="group" aria-label="Reel length">
+            {durations.map((seconds) => (
+              <button
+                key={seconds}
+                type="button"
+                onClick={() => onDuration(seconds)}
+                className={`rounded-full px-3 py-1 text-sm tabular-nums transition-colors ${
+                  duration === seconds ? "bg-[var(--wash)] text-[var(--ink)]" : "text-[var(--soft)] hover:text-[var(--ink)]"
+                }`}
+              >
+                {seconds}s
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className="flex w-full max-w-[440px] flex-wrap items-center justify-between gap-3">
-        <div className="flex rounded-full border border-[var(--line)] p-1" role="group" aria-label="Type voice">
-          {voiceOptions.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => onVoice(item.id)}
-              aria-pressed={voice === item.id}
-              className={`rounded-full px-3 py-1 text-xs transition-colors ${
-                voice === item.id ? "bg-[var(--wash)] text-[var(--ink)]" : "text-[var(--soft)] hover:text-[var(--ink)]"
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
+      <div className="flex w-full max-w-[440px] flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-sm text-[var(--ink)]">Text balance</p>
+          <p className="mb-2 text-sm text-[var(--soft)]">Which line is larger.</p>
+          <div className="flex rounded-full border border-[var(--line)] p-1" role="group" aria-label="Text balance">
+            {voiceOptions.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onVoice(item.id)}
+                aria-pressed={voice === item.id}
+                className={`rounded-full px-3 py-1 text-sm transition-colors ${
+                  voice === item.id ? "bg-[var(--wash)] text-[var(--ink)]" : "text-[var(--soft)] hover:text-[var(--ink)]"
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={() => setFocused((value) => !value)}
-          className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-3 py-1 text-xs text-[var(--ink)] transition-colors hover:bg-[var(--wash)] active:scale-[0.98]"
-        >
-          {focused ? <ArrowsIn size={14} weight="regular" /> : <ArrowsOut size={14} weight="regular" />}
-          {focused ? "Close" : "Focus"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setPhone((value) => !value)}
+            aria-pressed={phone}
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm transition-colors active:scale-[0.98] ${
+              phone
+                ? "border-[var(--accent)] bg-[var(--wash)] text-[var(--ink)]"
+                : "border-[var(--line)] text-[var(--ink)] hover:bg-[var(--wash)]"
+            }`}
+          >
+            <DeviceMobile size={14} weight="regular" />
+            {phone ? "Studio size" : "Phone size"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setFocused((value) => !value)}
+            className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-3 py-1 text-sm text-[var(--ink)] transition-colors hover:bg-[var(--wash)] active:scale-[0.98]"
+          >
+            {focused ? <ArrowsIn size={14} weight="regular" /> : <ArrowsOut size={14} weight="regular" />}
+            {focused ? "Close" : "Focus"}
+          </button>
+        </div>
       </div>
 
-      <div className="flex w-full max-w-[440px] flex-wrap items-center justify-between gap-3">
-        <div className="flex rounded-full border border-[var(--line)] p-1" role="group" aria-label="Seat">
+      <div className="w-full max-w-[440px]">
+        <p className="text-sm text-[var(--ink)]">Text position</p>
+        <p className="mb-2 text-sm text-[var(--soft)]">Where the type sits in the frame.</p>
+        <div className="flex rounded-full border border-[var(--line)] p-1" role="group" aria-label="Text position">
           {seatOptions.map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => onSeat(item.id)}
               aria-pressed={seat === item.id}
-              className={`rounded-full px-3 py-1 text-xs transition-colors ${
+              className={`rounded-full px-3 py-1 text-sm transition-colors ${
                 seat === item.id ? "bg-[var(--wash)] text-[var(--ink)]" : "text-[var(--soft)] hover:text-[var(--ink)]"
               }`}
             >
@@ -521,7 +554,7 @@ export function Stage({
         </div>
       </div>
 
-      <div className="mx-auto flex w-full flex-col gap-3" style={{ width: frameWidth }}>
+      <div className="order-first mx-auto flex w-full flex-col gap-3" style={{ width: frameWidth }}>
         <div className="relative">
           {!fontsReady && (
             <div
@@ -546,7 +579,7 @@ export function Stage({
           </div>
         </div>
 
-        <div className="flex items-center justify-between text-[0.68rem] text-[var(--faint)]">
+        <div className="flex items-center justify-between text-sm text-[var(--soft)]">
           <p className="tabular-nums">
             {size.w} × {size.h}
           </p>
@@ -607,7 +640,35 @@ export function Stage({
           </button>
         )}
 
+        <p className="text-sm leading-relaxed text-[var(--soft)]">
+          Reels are silent. No music or voice is added.
+        </p>
         <div className="flex flex-wrap gap-2">
+        <MagneticButton
+          onClick={() => {
+            if (!canExport) return;
+            setMode("off");
+            setShareNote("");
+            paint(held ?? 1);
+            const canvas = canvasRef.current;
+            if (canvas) downloadStill(canvas, `tadhkeer-${slug}.png`);
+          }}
+          disabled={!canExport || busy}
+          className="inline-flex items-center gap-2 rounded-full bg-[var(--accent)] px-5 py-3 text-base text-[var(--accent-ink)] disabled:opacity-40"
+        >
+          <ImageSquare size={18} weight="regular" />
+          Download image
+          <DownloadSimple size={16} weight="regular" />
+        </MagneticButton>
+        <MagneticButton
+          onClick={() => onRecord([piece])}
+          disabled={!canExport || busy}
+          className="inline-flex items-center gap-2 rounded-full border border-[var(--accent)] bg-[var(--field)] px-5 py-3 text-base text-[var(--ink)] disabled:opacity-40"
+        >
+          <FilmStrip size={18} weight="regular" />
+          {recording === "line" ? "Recording…" : "Download reel"}
+        </MagneticButton>
+        {advanced && (
         <button
           type="button"
           onClick={() => {
@@ -622,23 +683,8 @@ export function Stage({
           {mode === "line" ? <Pause size={16} weight="regular" /> : <Play size={16} weight="regular" />}
           {mode === "line" ? "Stop" : "Play reel"}
         </button>
-        <MagneticButton
-          onClick={() => {
-            if (!canExport) return;
-            setMode("off");
-            setShareNote("");
-            paint(held ?? 1);
-            const canvas = canvasRef.current;
-            if (canvas) downloadStill(canvas, `mihrab-${slug}.png`);
-          }}
-          disabled={!canExport || busy}
-          className="inline-flex items-center gap-2 rounded-full bg-[var(--accent)] px-4 py-2 text-sm text-[var(--accent-ink)] disabled:opacity-40"
-        >
-          <ImageSquare size={16} weight="regular" />
-          Still
-          <DownloadSimple size={14} weight="regular" />
-        </MagneticButton>
-        {canShare && (
+        )}
+        {advanced && canShare && (
           <button
             type="button"
             onClick={onShare}
@@ -649,15 +695,7 @@ export function Stage({
             Share
           </button>
         )}
-        <MagneticButton
-          onClick={() => onRecord([piece])}
-          disabled={!canExport || busy}
-          className="inline-flex items-center gap-2 rounded-full border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] px-4 py-2 text-sm text-[var(--ink)] disabled:opacity-40"
-        >
-          <FilmStrip size={16} weight="regular" />
-          {recording === "line" ? "Recording…" : "Reel"}
-        </MagneticButton>
-        {canRun && (
+        {advanced && canRun && (
           <button
             type="button"
             onClick={() => {
@@ -675,10 +713,10 @@ export function Stage({
             className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-4 py-2 text-sm text-[var(--ink)] transition-colors hover:bg-[var(--wash)] active:scale-[0.98] disabled:opacity-40"
           >
             {mode === "run" ? <Pause size={16} weight="regular" /> : <Stack size={16} weight="regular" />}
-            {mode === "run" ? "Stop" : "Play run"}
+            {mode === "run" ? "Stop" : "Play pinned reel"}
           </button>
         )}
-        {canRun && (
+        {advanced && canRun && (
           <button
             type="button"
             onClick={() => onRecord(runnable)}
@@ -686,7 +724,7 @@ export function Stage({
             className="inline-flex items-center gap-2 rounded-full border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] px-4 py-2 text-sm text-[var(--ink)] transition-colors hover:bg-[var(--wash)] active:scale-[0.98] disabled:opacity-40"
           >
             <FilmStrip size={16} weight="regular" />
-            {recording === "run" ? "Recording…" : "Save run"}
+            {recording === "run" ? "Recording…" : "Download pinned reel"}
           </button>
         )}
         {ready && (
@@ -713,7 +751,7 @@ export function Stage({
             Mark posted
           </button>
         )}
-        {canRun && (
+        {advanced && canRun && (
           <button
             type="button"
             onClick={onSaveStills}
@@ -726,7 +764,8 @@ export function Stage({
         )}
         </div>
 
-      <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-[var(--soft)]">
+      {advanced && (
+      <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-[var(--soft)]">
         <label className="inline-flex items-center gap-2">
           <input
             type="checkbox"
@@ -741,7 +780,7 @@ export function Stage({
             checked={showMark}
             onChange={(event) => onMark(event.target.checked)}
           />
-          Mark Mihrab
+          Mark Tadhkeer
         </label>
         <label className="inline-flex items-center gap-2">
           <input type="checkbox" checked={clear} onChange={(event) => onClear(event.target.checked)} />
@@ -756,6 +795,7 @@ export function Stage({
           Firm plate
         </label>
       </div>
+      )}
 
       {shareNote && (
         <p className="text-sm text-[var(--soft)]" role="status">
@@ -770,8 +810,10 @@ export function Stage({
       {!canExport && (
         <p className="text-sm text-[var(--soft)]">Write the English line before you export.</p>
       )}
-      <p className="text-xs leading-relaxed text-[var(--faint)]">
-        Send opens the share sheet, including Instagram, TikTok, and WhatsApp. The caption is copied so you can paste it. A run fades from one line into the next. Drag the bar under the frame to hold a moment, then save that still. The reel is silent. Firm plate holds the type off the motion. Clear of the buttons keeps the type inside a Reel.
+      <p className="text-sm leading-relaxed text-[var(--soft)]">
+        {advanced
+          ? "Send opens the share sheet, including Instagram, TikTok, and WhatsApp. The caption is copied so you can paste it. A pinned reel fades from one line into the next. Drag the bar under the frame to hold a moment, then download that image. Reels are silent. Firm plate holds the type off the motion. Clear of the buttons keeps the type inside a Reel."
+          : "Download image saves this frame. Download reel saves a silent video of this line. Phone size shows the post at the width of a phone."}
       </p>
       </div>
     </div>

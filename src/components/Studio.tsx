@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
+  ArrowSquareOut,
   ArrowUUpLeft,
   BookmarkSimple,
   CaretLeft,
@@ -20,7 +21,7 @@ import { buildCaption, filterLibrary, kinds, library, topics } from "../data/lib
 import { motionById } from "../data/backgrounds";
 import { shellVars, themeById } from "../data/themes";
 import { freshDeskId, loadDesk, saveDesk } from "../lib/desk";
-import { ColourLauncher, ColourPanel } from "./ColourPanel";
+import { ColourPanel } from "./ColourPanel";
 import { InstallHome } from "./InstallHome";
 import { MagneticButton } from "./MagneticButton";
 import { Stage } from "./Stage";
@@ -37,14 +38,16 @@ const kindLabel: Record<Kind, string> = {
 
 const topicLabel = Object.fromEntries(topics.map((item) => [item.id, item.label])) as Record<Topic, string>;
 
-function initialColourOpen() {
-  if (typeof window === "undefined") return true;
-  if (!window.matchMedia("(min-width: 1024px)").matches) return false;
-  try {
-    return localStorage.getItem("mihrab-colour-open") !== "0";
-  } catch {
-    return true;
-  }
+function verifiedDraft(piece: Piece): Piece {
+  const found = library.find((item) => item.id === piece.id);
+  if (!found) return piece;
+  if (found.english !== piece.english || found.arabic !== piece.arabic) return piece;
+  return {
+    ...piece,
+    source: found.source,
+    sourceUrl: found.sourceUrl,
+    attribution: found.attribution,
+  };
 }
 
 function emptyLibraryCopy(savedOnly: boolean, freshOnly: boolean, query: string, savedCount: number) {
@@ -70,14 +73,13 @@ export function Studio() {
   const [duration, setDuration] = useState(stored.duration);
   const [useHook, setUseHook] = useState(stored.useHook);
   const [showMark, setShowMark] = useState(stored.showMark);
-  const [draft, setDraft] = useState<Piece>(stored.draft);
+  const [draft, setDraft] = useState<Piece>(() => verifiedDraft(stored.draft));
   const [savedIds, setSavedIds] = useState<string[]>(stored.savedIds);
   const [savedOnly, setSavedOnly] = useState(stored.savedOnly);
   const [tray, setTray] = useState<Piece[]>(stored.tray);
   const [query, setQuery] = useState("");
   const [notice, setNotice] = useState("");
   const [copied, setCopied] = useState(false);
-  const [colourOpen, setColourOpen] = useState(initialColourOpen);
   const [backgroundId, setBackgroundId] = useState<string | null>(stored.backgroundId);
   const [voice, setVoice] = useState<Voice>(stored.voice);
   const [seat, setSeat] = useState<Seat>(stored.seat);
@@ -86,6 +88,8 @@ export function Studio() {
   const [firm, setFirm] = useState(stored.firm);
   const [postedIds, setPostedIds] = useState<string[]>(stored.postedIds);
   const [freshOnly, setFreshOnly] = useState(stored.freshOnly);
+  const [pathStep, setPathStep] = useState<"reminder" | "style" | "download">("reminder");
+  const [more, setMore] = useState(false);
   const [copiedRun, setCopiedRun] = useState(false);
   const [videoReady, setVideoReady] = useState(0);
   const [undoCount, setUndoCount] = useState(0);
@@ -164,15 +168,6 @@ export function Studio() {
     freshOnly,
     firm,
   ]);
-
-  function setColour(open: boolean) {
-    setColourOpen(open);
-    try {
-      localStorage.setItem("mihrab-colour-open", open ? "1" : "0");
-    } catch {
-      /* storage can be blocked */
-    }
-  }
 
   function samePiece(a: Piece, b: Piece) {
     return (
@@ -443,33 +438,85 @@ export function Studio() {
       <WordBand />
       <header className="mt-8 flex flex-wrap items-end justify-between gap-6">
         <div>
-          <p className="text-[0.72rem] font-medium tracking-[0.28em] text-[var(--accent)]">MIHRAB</p>
-          <h1 className="font-display mt-3 max-w-[14ch] text-balance text-[2.7rem] font-medium leading-[0.96] tracking-[-0.03em] text-[var(--ink)] md:text-5xl">
-            Faceless reminders, set in type.
+          <p className="text-[0.72rem] font-medium tracking-[0.28em] text-[var(--accent)]">TADHKEER</p>
+          <h1 className="font-display mt-3 max-w-[18ch] text-balance text-[2.4rem] font-medium leading-[1.02] tracking-[-0.03em] text-[var(--ink)] md:text-5xl">
+            Create beautiful Islamic posts and reels
           </h1>
           <p className="mt-4 max-w-[62ch] text-base leading-relaxed text-[var(--soft)]">
-            Pick an ayah, a hadith, or a short reminder. Pin a short run and it fades from one line
-            into the next. Mark a line posted and the unposted shelf keeps the rest.
+            Choose a reminder, choose a style, then download. The preview stays beside you.
           </p>
+          <nav className="mt-5 flex flex-wrap gap-2" aria-label="Create a post">
+            {(
+              [
+                ["reminder", "1", "Choose a reminder"],
+                ["style", "2", "Choose a style"],
+                ["download", "3", "Download"],
+              ] as const
+            ).map(([id, number, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setPathStep(id)}
+                aria-current={pathStep === id ? "step" : undefined}
+                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm ${
+                  pathStep === id
+                    ? "border-[var(--accent)] bg-[var(--wash)] text-[var(--ink)]"
+                    : "border-[var(--line)] text-[var(--soft)] hover:text-[var(--ink)]"
+                }`}
+              >
+                <span className="font-medium tabular-nums text-[var(--accent)]">{number}</span>
+                {label}
+              </button>
+            ))}
+          </nav>
         </div>
         <div className="flex flex-col items-start gap-3 md:items-end">
           <InstallHome />
-          <p className="hidden text-xs leading-relaxed text-[var(--faint)] md:block">
+          <p className="text-sm text-[var(--soft)]">
             <span className="tabular-nums">{library.length}</span> lines
-            <span className="mx-2 text-[var(--line)]">/</span>
-            C composes
-            <span className="mx-2 text-[var(--line)]">/</span>
-            N next
-            <span className="mx-2 text-[var(--line)]">/</span>
-            Z undoes
-            <span className="mx-2 text-[var(--line)]">/</span>
-            arrows step
           </p>
         </div>
       </header>
 
-      <div className="mt-8 grid grid-cols-1 items-start gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(320px,440px)_auto] lg:gap-8">
+      <div className="mt-8 grid grid-cols-1 items-start gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(320px,440px)] lg:gap-8">
         <section id="line" className="order-2 lg:order-1">
+          {pathStep === "style" && (
+            <div>
+              <h2 className="text-lg text-[var(--ink)]">Choose a style</h2>
+              <p className="mt-2 max-w-[62ch] text-sm leading-relaxed text-[var(--soft)]">
+                Pick a motion and a colour. The preview updates as you go. Text balance and text position sit with the preview.
+              </p>
+              <div className="mt-4">
+                <ColourPanel
+                  themeId={themeId}
+                  backgroundId={backgroundId}
+                  open
+                  onOpen={() => undefined}
+                  onTheme={setThemeId}
+                  onBackground={setBackgroundId}
+                  inline
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setPathStep("download")}
+                className="mt-6 inline-flex items-center gap-2 rounded-full bg-[var(--accent)] px-5 py-3 text-base text-[var(--accent-ink)] active:scale-[0.98]"
+              >
+                Generate design
+              </button>
+            </div>
+          )}
+          {pathStep === "download" && (
+            <div>
+              <h2 className="text-lg text-[var(--ink)]">Download</h2>
+              <p className="mt-2 max-w-[62ch] text-sm leading-relaxed text-[var(--soft)]">
+                Download image saves a still. Download reel saves a silent video. No music or voice is added. Both buttons sit under the preview.
+              </p>
+              <SourceCard piece={draft} />
+            </div>
+          )}
+          {pathStep === "reminder" && (
+          <>
           <div className="flex flex-wrap gap-2">
             {kinds.map((item) => (
               <button
@@ -538,14 +585,27 @@ export function Studio() {
               )}
             </span>
           </label>
+          </>
+          )}
 
+          <button
+            type="button"
+            onClick={() => setMore((value) => !value)}
+            aria-expanded={more}
+            className="mt-6 rounded-full border border-[var(--line)] px-4 py-2 text-sm text-[var(--ink)] hover:bg-[var(--wash)]"
+          >
+            {more ? "Hide options" : "More options"}
+          </button>
+
+          {more && (
+          <>
           <div className="mt-5 flex flex-wrap items-center gap-3">
             <MagneticButton
               onClick={compose}
               className="inline-flex items-center gap-2 rounded-full bg-[var(--accent)] px-5 py-2.5 text-sm text-[var(--accent-ink)]"
             >
               <Shuffle size={16} weight="regular" />
-              Compose
+              Pick a line
             </MagneticButton>
             <button
               type="button"
@@ -685,12 +745,34 @@ export function Studio() {
               </ul>
             )}
             {runCount >= 2 && (
-              <p className="mt-2 text-xs leading-relaxed text-[var(--faint)]">
-                This run is {runCount * duration}s. Move a pin to change the order. The type fades from one line into the next.
+              <p className="mt-2 text-sm leading-relaxed text-[var(--soft)]">
+                This run is {runCount * duration}s. Move a pin to change the order. The type fades from one line into the next. Reels are silent.
               </p>
             )}
+            <ul className="mt-4 flex max-w-[68ch] flex-wrap gap-2">
+              {[
+                ["C", "Pick a line"],
+                ["N", "Next unposted"],
+                ["Z", "Undo"],
+                ["↑↓", "Move through the list"],
+                ["P", "Mark posted"],
+                ["/", "Search"],
+                ["F", "Focus the frame"],
+              ].map(([key, label]) => (
+                <li
+                  key={key}
+                  className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--field)] px-2.5 py-1 text-sm text-[var(--soft)]"
+                >
+                  <kbd className="font-medium text-[var(--ink)]">{key}</kbd>
+                  {label}
+                </li>
+              ))}
+            </ul>
           </div>
+          </>
+          )}
 
+          {pathStep === "reminder" && (
           <div className="mt-8 border-t border-[var(--line)]">
             <div className="flex items-baseline justify-between py-3">
               <p className="text-sm text-[var(--ink)]">Library</p>
@@ -728,9 +810,20 @@ export function Studio() {
                           <span className={`text-sm leading-relaxed ${posted && !active ? "text-[var(--soft)]" : "text-[var(--ink)]"}`}>
                             {piece.english}
                           </span>
-                          <span className="text-xs text-[var(--faint)]">{piece.source}</span>
+                          <span className="text-sm text-[var(--soft)]">{piece.source}</span>
                         </button>
-                        <div className="mt-2 flex shrink-0 flex-col">
+                        <div className="mt-2 flex shrink-0 flex-col items-end">
+                          {piece.sourceUrl && (
+                            <a
+                              href={piece.sourceUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 px-2 py-1 text-sm text-[var(--ink)] underline decoration-[var(--line)] underline-offset-4 hover:text-[var(--accent)]"
+                            >
+                              View source
+                              <ArrowSquareOut size={14} weight="regular" />
+                            </a>
+                          )}
                           <button
                             type="button"
                             onClick={() => toggleSaved(piece.id)}
@@ -756,8 +849,18 @@ export function Studio() {
                 </AnimatePresence>
               </ul>
             )}
+            <SourceCard piece={draft} />
+            <button
+              type="button"
+              onClick={() => setPathStep("style")}
+              className="mb-6 inline-flex items-center gap-2 rounded-full bg-[var(--accent)] px-5 py-3 text-base text-[var(--accent-ink)] active:scale-[0.98]"
+            >
+              Choose a style
+            </button>
           </div>
+          )}
 
+          {more && (
           <div className="mt-8 grid gap-4 border-t border-[var(--line)] pt-6">
             <label className="grid gap-2">
               <span className="text-sm text-[var(--ink)]">Hook</span>
@@ -857,23 +960,23 @@ export function Studio() {
               </button>
             </div>
           </div>
+          )}
 
-          <p className="mt-8 max-w-[68ch] text-sm leading-relaxed text-[var(--faint)]">
-            Ayah and hadith lines are short English renderings of well-known texts, with the Arabic
-            beside them. They are not a new translation. Confirm the wording in a mushaf or a
-            trusted collection before you post it as scripture. Lines marked Reminder are original.
-            Do not attribute them to the Qur'an or the Prophet, peace be upon him.
+          <p className="mt-8 max-w-[68ch] text-sm leading-relaxed text-[var(--soft)]">
+            Ayah and hadith lines are short English renderings, with the Arabic beside them. They are
+            not a published translation. View source opens Quran.com or Sunnah.com so you can check
+            the wording before you share it. Lines marked Reminder are original. Do not attribute
+            them to the Qur’an or the Prophet, peace be upon him.
           </p>
           <a
             href="mailto:creator@tadhkeer.space"
-            className="mt-4 inline-block text-xs tracking-wide text-[var(--faint)] underline decoration-[var(--line)] underline-offset-4 hover:text-[var(--ink)]"
+            className="mt-4 inline-block text-sm tracking-wide text-[var(--soft)] underline decoration-[var(--line)] underline-offset-4 hover:text-[var(--ink)]"
           >
             creator@tadhkeer.space
           </a>
         </section>
 
         <section className="order-1 flex flex-col gap-3 lg:sticky lg:top-8 lg:order-2">
-          <ColourLauncher theme={theme} motionName={ground?.name} onOpen={() => setColour(true)} />
           <Stage
             piece={draft}
             theme={theme}
@@ -902,17 +1005,33 @@ export function Studio() {
             videoRef={videoRef}
             videoReady={videoReady}
             onPosted={rememberPosted}
+            advanced={more}
           />
         </section>
-        <ColourPanel
-          themeId={themeId}
-          backgroundId={backgroundId}
-          open={colourOpen}
-          onOpen={setColour}
-          onTheme={setThemeId}
-          onBackground={setBackgroundId}
-        />
       </div>
+    </div>
+  );
+}
+
+function SourceCard({ piece }: { piece: Piece }) {
+  return (
+    <div className="my-4 rounded-2xl border border-[var(--line)] bg-[var(--field)] p-4">
+      <p className="text-sm leading-relaxed text-[var(--ink)]">{piece.english || "Choose a line to begin."}</p>
+      <p className="mt-2 text-base text-[var(--ink)]">{piece.source}</p>
+      {piece.attribution && (
+        <p className="mt-2 text-sm leading-relaxed text-[var(--soft)]">{piece.attribution}</p>
+      )}
+      {piece.sourceUrl && (
+        <a
+          href={piece.sourceUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-3 inline-flex items-center gap-1 text-sm text-[var(--ink)] underline decoration-[var(--line)] underline-offset-4 hover:text-[var(--accent)]"
+        >
+          View source
+          <ArrowSquareOut size={14} weight="regular" />
+        </a>
+      )}
     </div>
   );
 }

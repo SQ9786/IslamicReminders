@@ -11,6 +11,7 @@ type Props = {
   onOpen: (open: boolean) => void;
   onTheme: (id: string) => void;
   onBackground: (id: string | null) => void;
+  inline?: boolean;
 };
 
 export function ColourLauncher({
@@ -39,8 +40,17 @@ export function ColourLauncher({
   );
 }
 
-export function ColourPanel({ themeId, backgroundId, open, onOpen, onTheme, onBackground }: Props) {
+export function ColourPanel({ themeId, backgroundId, open, onOpen, onTheme, onBackground, inline = false }: Props) {
   const theme = themes.find((item) => item.id === themeId) ?? themes[0];
+
+  if (inline) {
+    return (
+      <div>
+        <MotionList backgroundId={backgroundId} onBackground={onBackground} />
+        <ThemeList themeId={themeId} onTheme={onTheme} />
+      </div>
+    );
+  }
 
   return (
     <>
@@ -66,7 +76,7 @@ export function ColourPanel({ themeId, backgroundId, open, onOpen, onTheme, onBa
                 <CaretRight size={16} weight="regular" />
               </button>
             </div>
-            <p className="mt-2 text-xs leading-relaxed text-[var(--faint)]">
+            <p className="mt-2 text-sm leading-relaxed text-[var(--soft)]">
               Motion fills the frame. Colour still dresses the studio.
             </p>
             <MotionList backgroundId={backgroundId} onBackground={onBackground} />
@@ -130,7 +140,7 @@ export function ColourPanel({ themeId, backgroundId, open, onOpen, onTheme, onBa
                   <X size={16} weight="regular" />
                 </button>
               </div>
-              <p className="mt-2 text-xs leading-relaxed text-[var(--faint)]">
+              <p className="mt-2 text-sm leading-relaxed text-[var(--soft)]">
                 Motion fills the frame. Colour still dresses the studio.
               </p>
               <MotionList
@@ -177,7 +187,7 @@ function MotionList({
         >
           <span className="block h-16 rounded-xl bg-[var(--wash)]" />
           <span className="mt-1.5 block px-1 text-sm text-[var(--ink)]">Still</span>
-          <span className="block px-1 text-[0.68rem] text-[var(--faint)]">Colour only</span>
+          <span className="block px-1 text-xs text-[var(--soft)]">Colour only</span>
         </button>
       </li>
       {motions.map((item) => {
@@ -198,7 +208,7 @@ function MotionList({
                 className="h-16 w-full rounded-xl object-cover"
               />
               <span className="mt-1.5 block px-1 text-sm text-[var(--ink)]">{item.name}</span>
-              <span className="block px-1 text-[0.68rem] text-[var(--faint)]">{item.note}</span>
+              <span className="block px-1 text-xs text-[var(--soft)]">{item.note}</span>
             </button>
           </li>
         );
@@ -234,7 +244,7 @@ function ThemeList({ themeId, onTheme }: { themeId: string; onTheme: (id: string
               />
               <span className="min-w-0">
                 <span className="block text-sm text-[var(--ink)]">{item.name}</span>
-                <span className="mt-1 block text-[0.68rem] uppercase tracking-[0.16em] text-[var(--faint)]">
+                <span className="mt-1 block text-xs uppercase tracking-[0.16em] text-[var(--soft)]">
                   {item.shell.light ? "Light" : "Dark"}
                 </span>
                 <span className="mt-2 flex gap-1">

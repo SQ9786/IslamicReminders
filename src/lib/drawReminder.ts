@@ -448,8 +448,8 @@ export function drawReminder(
   const source = piece.source.trim() || "Add a source";
   ctx.save();
   ctx.globalAlpha = alpha.source;
-  ctx.font = `500 ${w * 0.026 * scale}px Outfit, sans-serif`;
-  ctx.fillStyle = muted;
+  ctx.font = `500 ${w * 0.036 * scale}px Outfit, sans-serif`;
+  ctx.fillStyle = ink;
   ctx.direction = "ltr";
   ctx.textAlign = "center";
   const sourceY = spec.clear
@@ -467,7 +467,7 @@ export function drawReminder(
   if (showMark) {
     ctx.globalAlpha = fade(alpha.source * 0.7);
     ctx.font = `500 ${w * 0.02}px Outfit, sans-serif`;
-    ctx.fillText("mihrab", cx, sourceY + w * 0.045);
+    ctx.fillText("tadhkeer", cx, sourceY + w * 0.045);
   }
   ctx.restore();
   ctx.restore();

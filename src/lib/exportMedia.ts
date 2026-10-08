@@ -26,7 +26,7 @@ export type ShareResult = "shared" | "saved" | "cancelled";
 
 export function canShareFile(type: string) {
   if (typeof navigator.share !== "function" || typeof navigator.canShare !== "function") return false;
-  const name = type.includes("mp4") ? "mihrab.mp4" : type.includes("png") ? "mihrab.png" : "mihrab.webm";
+  const name = type.includes("mp4") ? "tadhkeer.mp4" : type.includes("png") ? "tadhkeer.png" : "tadhkeer.webm";
   try {
     return navigator.canShare({ files: [new File([new Blob([""], { type })], name, { type })] });
   } catch {
@@ -36,7 +36,7 @@ export function canShareFile(type: string) {
 
 function shareData(file: File, text: string): ShareData | null {
   if (typeof navigator.share !== "function") return null;
-  const title = "Mihrab";
+  const title = "Tadhkeer";
   const withText: ShareData = { files: [file], title, text };
   const filesOnly: ShareData = { files: [file], title };
   try {
@@ -58,7 +58,7 @@ export function shareFile(blob: Blob, filename: string, text: string): Promise<S
   const finish = (error: unknown): ShareResult | Promise<ShareResult> => {
     if (error instanceof DOMException && error.name === "AbortError") return "cancelled";
     if (data.text && typeof navigator.share === "function") {
-      return navigator.share({ files: [file], title: "Mihrab" }).then(
+      return navigator.share({ files: [file], title: "Tadhkeer" }).then(
         () => "shared" as const,
         (again: unknown) => {
           if (again instanceof DOMException && again.name === "AbortError") return "cancelled";
