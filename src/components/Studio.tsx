@@ -64,6 +64,20 @@ function emptyLibraryCopy(savedOnly: boolean, freshOnly: boolean, query: string,
   return "No lines for this filter. Clear it, or write your own.";
 }
 
+function useDesk(): "phone" | "studio" {
+  const query = "(min-width: 1024px)";
+  const [desk, setDesk] = useState<"phone" | "studio">(() =>
+    window.matchMedia(query).matches ? "studio" : "phone",
+  );
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    const apply = () => setDesk(media.matches ? "studio" : "phone");
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, []);
+  return desk;
+}
+
 export function Studio() {
   const [stored] = useState(loadDesk);
   const [kind, setKind] = useState<Kind | "all">(stored.kind);
@@ -90,6 +104,8 @@ export function Studio() {
   const [freshOnly, setFreshOnly] = useState(stored.freshOnly);
   const [pathStep, setPathStep] = useState<"reminder" | "style" | "download">("reminder");
   const [more, setMore] = useState(false);
+  const desk = useDesk();
+  const studio = desk === "studio";
   const [copiedRun, setCopiedRun] = useState(false);
   const [videoReady, setVideoReady] = useState(0);
   const [undoCount, setUndoCount] = useState(0);
@@ -415,7 +431,7 @@ export function Studio() {
 
   return (
     <div
-      className="relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-[1560px] flex-col px-4 py-6 md:px-8 md:py-8"
+      className={`relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-[1560px] flex-col px-4 py-6 md:px-8 md:py-8 ${studio ? "" : "pb-36"}`}
       style={shellVars(theme)}
     >
       {ground && (
@@ -435,23 +451,35 @@ export function Studio() {
           <div className="absolute inset-0" style={{ background: theme.shell.page, opacity: 0.5 }} />
         </div>
       )}
-      <WordBand />
-      <header className="mt-8 flex flex-wrap items-end justify-between gap-6">
+      {studio && <WordBand />}
+      <header className={`${studio ? "mt-8" : "mt-4"} flex flex-wrap items-end justify-between gap-6`}>
         <div>
           <p className="text-[0.72rem] font-medium tracking-[0.28em] text-[var(--accent)]">TADHKEER</p>
-          <h1 className="font-display mt-3 max-w-[18ch] text-balance text-[2.4rem] font-medium leading-[1.02] tracking-[-0.03em] text-[var(--ink)] md:text-5xl">
+          <h1
+            className={`font-display max-w-[18ch] text-balance font-medium leading-[1.02] tracking-[-0.03em] text-[var(--ink)] ${
+              studio ? "mt-3 text-[2.4rem] md:text-5xl" : "mt-2 text-[1.75rem]"
+            }`}
+          >
             Create beautiful Islamic posts and reels
           </h1>
           <p className="mt-4 max-w-[62ch] text-base leading-relaxed text-[var(--soft)]">
-            Choose a reminder, choose a style, then download. The preview stays beside you.
+            {studio
+              ? "Choose a reminder, choose a style, then download. The preview stays beside you."
+              : "Pick a line and save it to your phone."}
           </p>
           <nav className="mt-5 flex flex-wrap gap-2" aria-label="Create a post">
             {(
-              [
-                ["reminder", "1", "Choose a reminder"],
-                ["style", "2", "Choose a style"],
-                ["download", "3", "Download"],
-              ] as const
+              studio
+                ? ([
+                    ["reminder", "1", "Choose a reminder"],
+                    ["style", "2", "Choose a style"],
+                    ["download", "3", "Download"],
+                  ] as const)
+                : ([
+                    ["reminder", "1", "Line"],
+                    ["style", "2", "Style"],
+                    ["download", "3", "Save"],
+                  ] as const)
             ).map(([id, number, label]) => (
               <button
                 key={id}
@@ -484,7 +512,9 @@ export function Studio() {
             <div>
               <h2 className="text-lg text-[var(--ink)]">Choose a style</h2>
               <p className="mt-2 max-w-[62ch] text-sm leading-relaxed text-[var(--soft)]">
-                Pick a motion and a colour. The preview updates as you go. Text balance and text position sit with the preview.
+                {studio
+                  ? "Pick a motion and a colour. The preview updates as you go. Text balance and text position sit with the preview."
+                  : "Pick a motion and a colour. The preview updates as you go."}
               </p>
               <div className="mt-4">
                 <ColourPanel
@@ -508,9 +538,11 @@ export function Studio() {
           )}
           {pathStep === "download" && (
             <div>
-              <h2 className="text-lg text-[var(--ink)]">Download</h2>
+              <h2 className="text-lg text-[var(--ink)]">{studio ? "Download" : "Save"}</h2>
               <p className="mt-2 max-w-[62ch] text-sm leading-relaxed text-[var(--soft)]">
-                Play video lets you hear it first. Download image saves a still. Download video saves the motion, and the voice starts when the English line appears. It is not a recitation.
+                {studio
+                  ? "Play video lets you hear it first. Download image saves a still. Download video saves the motion, and the voice starts when the English line appears. It is not a recitation."
+                  : "Play, image, and video sit along the bottom. The voice starts when the English line appears. It is not a recitation."}
               </p>
               <SourceCard piece={draft} />
             </div>
@@ -588,6 +620,7 @@ export function Studio() {
           </>
           )}
 
+          {studio && (
           <button
             type="button"
             onClick={() => setMore((value) => !value)}
@@ -596,8 +629,9 @@ export function Studio() {
           >
             {more ? "Hide options" : "More options"}
           </button>
+          )}
 
-          {more && (
+          {studio && more && (
           <>
           <div className="mt-5 flex flex-wrap items-center gap-3">
             <MagneticButton
@@ -785,7 +819,7 @@ export function Studio() {
                 {emptyLibraryCopy(savedOnly, freshOnly, query, savedIds.length)}
               </p>
             ) : (
-              <ul className="max-h-[340px] overflow-auto">
+              <ul className={studio ? "max-h-[340px] overflow-auto" : ""}>
                 <AnimatePresence initial={false}>
                   {matches.map((piece, index) => {
                     const active = piece.id === draft.id;
@@ -860,7 +894,7 @@ export function Studio() {
           </div>
           )}
 
-          {more && (
+          {studio && more && (
           <div className="mt-8 grid gap-4 border-t border-[var(--line)] pt-6">
             <label className="grid gap-2">
               <span className="text-sm text-[var(--ink)]">Hook</span>
@@ -1004,7 +1038,8 @@ export function Studio() {
             videoRef={videoRef}
             videoReady={videoReady}
             onPosted={rememberPosted}
-            advanced={more}
+            advanced={studio && more}
+            desk={desk}
           />
         </section>
       </div>

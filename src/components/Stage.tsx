@@ -11,6 +11,8 @@ import {
   Pause,
   Play,
   ShareNetwork,
+  SpeakerHigh,
+  SpeakerSlash,
   Stack,
 } from "@phosphor-icons/react";
 import type { Motion } from "../data/backgrounds";
@@ -58,6 +60,7 @@ type Props = {
   videoReady: number;
   onPosted: (ids: string[]) => void;
   advanced?: boolean;
+  desk?: "phone" | "studio";
 };
 
 const ratios: Ratio[] = ["9:16", "4:5", "1:1"];
@@ -100,6 +103,7 @@ export function Stage({
   videoReady,
   onPosted,
   advanced = true,
+  desk = "studio",
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -357,15 +361,18 @@ export function Stage({
   const busy = recording !== "off" || saving;
   const slug = fileSlug(piece.source || piece.english.slice(0, 24));
   const size = ratioSize[ratio];
+  const studio = desk === "studio";
   const frameWidth = focused
     ? ratio === "9:16"
       ? "min(92vw, calc(78dvh * 9 / 16))"
       : ratio === "4:5"
         ? "min(92vw, calc(78dvh * 4 / 5))"
         : "min(92vw, 78dvh)"
-    : phone
-      ? "min(100%, 280px)"
-      : ratio === "9:16"
+    : !studio
+      ? "min(100%, 420px)"
+      : phone
+        ? "min(100%, 280px)"
+        : ratio === "9:16"
         ? "min(100%, 440px, calc(62dvh * 9 / 16))"
         : ratio === "4:5"
           ? "min(100%, 440px, calc(62dvh * 4 / 5))"
@@ -534,6 +541,8 @@ export function Stage({
           : "flex flex-col gap-4"
       }
     >
+      {studio && (
+      <>
       <div className="flex w-full max-w-[440px] flex-wrap items-end justify-between gap-4">
         <div>
           <p className="mb-2 text-sm text-[var(--ink)]">Frame</p>
@@ -635,6 +644,8 @@ export function Stage({
           ))}
         </div>
       </div>
+      </>
+      )}
 
       <div className="order-first mx-auto flex w-full flex-col gap-3" style={{ width: frameWidth }}>
         <div className="relative">
@@ -723,6 +734,26 @@ export function Stage({
         )}
 
         <audio ref={audioRef} preload="auto" />
+        {!studio && (
+          <div>
+            <p className="mb-2 text-sm text-[var(--ink)]">Video length</p>
+            <div className="flex rounded-full border border-[var(--line)] p-1" role="group" aria-label="Video length">
+              {durations.map((seconds) => (
+                <button
+                  key={seconds}
+                  type="button"
+                  onClick={() => onDuration(seconds)}
+                  className={`flex-1 rounded-full px-3 py-1 text-sm tabular-nums transition-colors ${
+                    duration === seconds ? "bg-[var(--wash)] text-[var(--ink)]" : "text-[var(--soft)] hover:text-[var(--ink)]"
+                  }`}
+                >
+                  {seconds}s
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {studio && (
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
@@ -740,31 +771,28 @@ export function Stage({
               : "Sound is off, so the video is quiet."}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-        <MagneticButton
-          onClick={() => {
-            if (!canExport) return;
-            setMode("off");
-            setShareNote("");
-            paint(held ?? 1);
-            const canvas = canvasRef.current;
-            if (canvas) downloadStill(canvas, `tadhkeer-${slug}.png`);
-          }}
-          disabled={!canExport || busy}
-          className="inline-flex items-center gap-2 rounded-full bg-[var(--accent)] px-5 py-3 text-base text-[var(--accent-ink)] disabled:opacity-40"
+        )}
+        <div
+          className={
+            studio
+              ? "flex flex-wrap gap-2"
+              : "fixed inset-x-0 bottom-0 z-40 flex items-stretch gap-1.5 border-t border-[var(--line)] bg-[var(--page)]/95 px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md"
+          }
         >
-          <ImageSquare size={18} weight="regular" />
-          Download image
-          <DownloadSimple size={16} weight="regular" />
-        </MagneticButton>
-        <MagneticButton
-          onClick={() => onRecord([piece])}
-          disabled={!canExport || busy}
-          className="inline-flex items-center gap-2 rounded-full border border-[var(--accent)] bg-[var(--field)] px-5 py-3 text-base text-[var(--ink)] disabled:opacity-40"
-        >
-          <FilmStrip size={18} weight="regular" />
-          {recording === "line" ? "Recording…" : "Download video"}
-        </MagneticButton>
+        {!studio && (
+          <button
+            type="button"
+            aria-pressed={sound}
+            aria-label={sound ? "Sound on" : "Sound off"}
+            onClick={() => setSound((value) => !value)}
+            className={`inline-flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl px-1 py-2 text-xs ${
+              sound ? "bg-[var(--wash)] text-[var(--ink)]" : "text-[var(--soft)]"
+            }`}
+          >
+            {sound ? <SpeakerHigh size={18} weight="regular" /> : <SpeakerSlash size={18} weight="regular" />}
+            Sound
+          </button>
+        )}
         <button
           type="button"
           onClick={() => {
@@ -779,19 +807,59 @@ export function Stage({
             setMode("line");
           }}
           disabled={!canExport || busy}
-          className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-5 py-3 text-base text-[var(--ink)] transition-colors hover:bg-[var(--wash)] active:scale-[0.98] disabled:opacity-40"
+          className={
+            studio
+              ? "inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-5 py-3 text-base text-[var(--ink)] transition-colors hover:bg-[var(--wash)] active:scale-[0.98] disabled:opacity-40"
+              : "inline-flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl px-1 py-2 text-xs text-[var(--ink)] disabled:opacity-40"
+          }
         >
           {mode === "line" ? <Pause size={18} weight="regular" /> : <Play size={18} weight="regular" />}
-          {mode === "line" ? "Stop" : "Play video"}
+          {mode === "line" ? "Stop" : studio ? "Play video" : "Play"}
         </button>
-        {advanced && canShare && (
+        <MagneticButton
+          onClick={() => {
+            if (!canExport) return;
+            setMode("off");
+            setShareNote("");
+            paint(held ?? 1);
+            const canvas = canvasRef.current;
+            if (canvas) downloadStill(canvas, `tadhkeer-${slug}.png`);
+          }}
+          disabled={!canExport || busy}
+          className={
+            studio
+              ? "inline-flex items-center gap-2 rounded-full bg-[var(--accent)] px-5 py-3 text-base text-[var(--accent-ink)] disabled:opacity-40"
+              : "inline-flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl bg-[var(--accent)] px-1 py-2 text-xs text-[var(--accent-ink)] disabled:opacity-40"
+          }
+        >
+          <ImageSquare size={18} weight="regular" />
+          {studio ? "Download image" : "Image"}
+          {studio && <DownloadSimple size={16} weight="regular" />}
+        </MagneticButton>
+        <MagneticButton
+          onClick={() => onRecord([piece])}
+          disabled={!canExport || busy}
+          className={
+            studio
+              ? "inline-flex items-center gap-2 rounded-full border border-[var(--accent)] bg-[var(--field)] px-5 py-3 text-base text-[var(--ink)] disabled:opacity-40"
+              : "inline-flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl border border-[var(--accent)] bg-[var(--field)] px-1 py-2 text-xs text-[var(--ink)] disabled:opacity-40"
+          }
+        >
+          <FilmStrip size={18} weight="regular" />
+          {recording === "line" ? "Recording…" : studio ? "Download video" : "Video"}
+        </MagneticButton>
+        {(studio ? advanced : true) && canShare && (
           <button
             type="button"
             onClick={onShare}
             disabled={!canExport || busy}
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-4 py-2 text-sm text-[var(--ink)] transition-colors hover:bg-[var(--wash)] active:scale-[0.98] disabled:opacity-40"
+            className={
+              studio
+                ? "inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-4 py-2 text-sm text-[var(--ink)] transition-colors hover:bg-[var(--wash)] active:scale-[0.98] disabled:opacity-40"
+                : "inline-flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl px-1 py-2 text-xs text-[var(--ink)] disabled:opacity-40"
+            }
           >
-            <ShareNetwork size={16} weight="regular" />
+            <ShareNetwork size={18} weight="regular" />
             Share
           </button>
         )}
@@ -828,6 +896,18 @@ export function Stage({
             {recording === "run" ? "Recording…" : "Download pinned video"}
           </button>
         )}
+        {advanced && canRun && (
+          <button
+            type="button"
+            onClick={onSaveStills}
+            disabled={busy}
+            className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-4 py-2 text-sm text-[var(--ink)] transition-colors hover:bg-[var(--wash)] active:scale-[0.98] disabled:opacity-40"
+          >
+            <Images size={16} weight="regular" />
+            {saving ? "Packing…" : "Save stills"}
+          </button>
+        )}
+        </div>
         {ready && (
           <button
             type="button"
@@ -852,18 +932,6 @@ export function Stage({
             Mark posted
           </button>
         )}
-        {advanced && canRun && (
-          <button
-            type="button"
-            onClick={onSaveStills}
-            disabled={busy}
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-4 py-2 text-sm text-[var(--ink)] transition-colors hover:bg-[var(--wash)] active:scale-[0.98] disabled:opacity-40"
-          >
-            <Images size={16} weight="regular" />
-            {saving ? "Packing…" : "Save stills"}
-          </button>
-        )}
-        </div>
 
       {advanced && (
       <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-[var(--soft)]">
@@ -911,11 +979,20 @@ export function Stage({
       {!canExport && (
         <p className="text-sm text-[var(--soft)]">Write the English line before you export.</p>
       )}
+      {studio && (
       <p className="text-sm leading-relaxed text-[var(--soft)]">
         {advanced
           ? "Send opens the share sheet, including Instagram, TikTok, and WhatsApp. The caption is copied so you can paste it. A pinned video fades from one line into the next and speaks each English line. Drag the bar under the frame to hold a moment, then download that image. Firm plate holds the type off the motion. Clear of the buttons keeps the type inside a Reel."
           : "Play video lets you hear it first. Download image saves this frame. Download video saves the motion, and the voice starts when the English line appears. Phone size shows the post at the width of a phone."}
       </p>
+      )}
+      {!studio && (
+        <p className="text-sm leading-relaxed text-[var(--soft)]">
+          {sound
+            ? "The voice starts when the English line appears. It is not a recitation."
+            : "Sound is off, so the video is quiet."}
+        </p>
+      )}
       </div>
     </div>
   );
