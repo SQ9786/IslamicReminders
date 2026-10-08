@@ -103,9 +103,12 @@ export function Stage({
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const soundGraph = useRef<{ ctx: AudioContext; dest: MediaStreamAudioDestinationNode } | null>(null);
+  const soundGraph = useRef<{
+    ctx: AudioContext;
+    delay: DelayNode;
+    dest: MediaStreamAudioDestinationNode;
+  } | null>(null);
   const sounding = useRef<string | null>(null);
-  const spoken = useRef<string | null>(null);
   const lock = useRef(false);
   const pausePaint = useRef(false);
   const [fontsReady, setFontsReady] = useState(false);
@@ -219,20 +222,6 @@ export function Stage({
     };
   }, []);
 
-  function spokenTrack() {
-    const audio = audioRef.current;
-    if (!audio) return null;
-    if (!soundGraph.current) {
-      const ctx = new AudioContext();
-      const source = ctx.createMediaElementSource(audio);
-      const dest = ctx.createMediaStreamDestination();
-      source.connect(ctx.destination);
-      source.connect(dest);
-      soundGraph.current = { ctx, dest };
-    }
-    return soundGraph.current;
-  }
-
   function speechAt(item: Piece, audioMs: number, count: number) {
     const slotMs = duration * 1000;
     const withHook = useHook && Boolean(item.hook.trim());
@@ -245,45 +234,57 @@ export function Stage({
   function quietSound() {
     audioRef.current?.pause();
     sounding.current = null;
-    spoken.current = null;
   }
 
-  function armLine(item: Piece | undefined) {
+  function ensureGraph() {
+    const audio = audioRef.current;
+    if (!audio) return null;
+    if (!soundGraph.current) {
+      const ctx = new AudioContext();
+      const source = ctx.createMediaElementSource(audio);
+      const delay = ctx.createDelay(30);
+      const dest = ctx.createMediaStreamDestination();
+      source.connect(delay);
+      delay.connect(ctx.destination);
+      delay.connect(dest);
+      soundGraph.current = { ctx, delay, dest };
+    }
+    return soundGraph.current;
+  }
+
+  function startLine(item: Piece | undefined, count: number) {
     const audio = audioRef.current;
     const src = item && sound ? soundSrc(item) : null;
     if (!audio || !item || !src) {
       quietSound();
       return;
     }
-    const graph = spokenTrack();
-    if (graph?.ctx.state === "suspended") void graph.ctx.resume();
-    if (sounding.current === item.id) return;
-    spoken.current = null;
+    const graph = ensureGraph();
+    if (!graph) return;
+    void graph.ctx.resume();
+    const applyDelay = () => {
+      const audioMs = Number.isFinite(audio.duration) ? audio.duration * 1000 : 0;
+      const fraction = audioMs ? speechAt(item, audioMs, count) : useHook && item.hook.trim() ? 0.44 : 0.16;
+      graph.delay.delayTime.value = fraction * duration;
+    };
     sounding.current = item.id;
     audio.pause();
-    audio.src = src;
+    if (!audio.src.endsWith(src)) audio.src = src;
     audio.currentTime = 0;
-  }
-
-  function speakIfDue(item: Piece | undefined, local: number, count: number) {
-    const audio = audioRef.current;
-    if (!audio || !item || spoken.current === item.id || sounding.current !== item.id) return;
-    const audioMs = Number.isFinite(audio.duration) ? audio.duration * 1000 : 0;
-    if (!audioMs || local + 0.004 < speechAt(item, audioMs, count)) return;
-    spoken.current = item.id;
-    void audio.play().catch(() => {
-      spoken.current = null;
-    });
+    audio.addEventListener("loadedmetadata", applyDelay, { once: true });
+    applyDelay();
+    void audio.play();
   }
 
   function followSound(t: number, sequence: Piece[]) {
+    if (!sound) return;
     const count = Math.max(1, sequence.length);
     const layers = runLayers(t, count);
     const current = layers[layers.length - 1];
     if (!current) return;
     const item = sequence[current.index];
-    armLine(item);
-    speakIfDue(item, current.local, count);
+    if (!item || sounding.current === item.id) return;
+    startLine(item, count);
   }
 
   const pieceKey = `${piece.id}|${piece.english}|${piece.arabic}|${piece.hook}|${piece.source}`;
@@ -344,10 +345,7 @@ export function Stage({
       }
     };
     frame = requestAnimationFrame(loop);
-    return () => {
-      cancelAnimationFrame(frame);
-      if (!pausePaint.current) quietSound();
-    };
+    return () => cancelAnimationFrame(frame);
     // drawFrame reads the latest plate through signature
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, duration, signature, held, recording, saving, sound]);
@@ -406,9 +404,8 @@ export function Stage({
     const ids = postableIds(sequence);
     let shown = -1;
     try {
-      quietSound();
-      armLine(sequence[0]);
-      const graph = spokenTrack();
+      if (sound) startLine(sequence[0], count);
+      const graph = soundGraph.current;
       if (graph?.ctx.state === "suspended") await graph.ctx.resume();
       const track = sound ? graph?.dest.stream.getAudioTracks()[0] : null;
       const blob = await recordReel(
@@ -774,7 +771,12 @@ export function Stage({
             setError("");
             setShareNote("");
             setHeld(null);
-            setMode((value) => (value === "line" ? "off" : "line"));
+            if (mode === "line") {
+              setMode("off");
+              return;
+            }
+            if (sound) startLine(piece, 1);
+            setMode("line");
           }}
           disabled={!canExport || busy}
           className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-5 py-3 text-base text-[var(--ink)] transition-colors hover:bg-[var(--wash)] active:scale-[0.98] disabled:opacity-40"
@@ -805,6 +807,7 @@ export function Stage({
               setError("");
               setShareNote("");
               setHeld(null);
+              if (sound) startLine(runnable[0], runnable.length);
               setMode("run");
             }}
             disabled={busy}
