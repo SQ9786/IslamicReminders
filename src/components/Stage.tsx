@@ -14,7 +14,7 @@ import {
   Stack,
 } from "@phosphor-icons/react";
 import type { Motion } from "../data/backgrounds";
-import { buildCaption } from "../data/library";
+import { buildCaption, soundSrc } from "../data/library";
 import type { Piece, Ratio, Seat, Theme, Voice } from "../types";
 import { drawReminder, ratioSize, type DrawSpec, type Plate } from "../lib/drawReminder";
 import {
@@ -102,6 +102,9 @@ export function Stage({
   advanced = true,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const soundGraph = useRef<{ ctx: AudioContext; dest: MediaStreamAudioDestinationNode } | null>(null);
+  const sounding = useRef<string | null>(null);
   const lock = useRef(false);
   const pausePaint = useRef(false);
   const [fontsReady, setFontsReady] = useState(false);
@@ -117,6 +120,7 @@ export function Stage({
   const [shareNote, setShareNote] = useState("");
   const [error, setError] = useState("");
   const [phone, setPhone] = useState(false);
+  const [sound, setSound] = useState(true);
 
   const signature = [
     piece.kind,
@@ -214,6 +218,41 @@ export function Stage({
     };
   }, []);
 
+  function spokenTrack() {
+    const audio = audioRef.current;
+    if (!audio) return null;
+    if (!soundGraph.current) {
+      const ctx = new AudioContext();
+      const source = ctx.createMediaElementSource(audio);
+      const dest = ctx.createMediaStreamDestination();
+      source.connect(ctx.destination);
+      source.connect(dest);
+      soundGraph.current = { ctx, dest };
+    }
+    return soundGraph.current;
+  }
+
+  async function cueSound(item: Piece | undefined) {
+    const audio = audioRef.current;
+    const src = item && sound ? soundSrc(item) : null;
+    if (!audio || !item || !src) {
+      audio?.pause();
+      sounding.current = null;
+      return;
+    }
+    const graph = spokenTrack();
+    if (graph?.ctx.state === "suspended") await graph.ctx.resume();
+    if (sounding.current === item.id && !audio.paused) return;
+    sounding.current = item.id;
+    audio.src = src;
+    audio.currentTime = 0;
+    try {
+      await audio.play();
+    } catch {
+      sounding.current = null;
+    }
+  }
+
   const pieceKey = `${piece.id}|${piece.english}|${piece.arabic}|${piece.hook}|${piece.source}`;
   useEffect(() => {
     setHeld(null);
@@ -225,6 +264,8 @@ export function Stage({
     if (!canvas) return;
 
     if (mode === "off") {
+      audioRef.current?.pause();
+      sounding.current = null;
       const frameT = held ?? 1;
       setProgress(frameT);
       setRunAt(-1);
@@ -259,9 +300,10 @@ export function Stage({
       const t = Math.min(1, (now - start) / totalMs);
       const index = paintRun(t, sequence);
       setProgress(t);
-      if (mode === "run" && index !== shown) {
+      if (index !== shown) {
         shown = index;
-        setRunAt(index);
+        if (mode === "run") setRunAt(index);
+        void cueSound(sequence[index]);
       }
       if (t < 1) frame = requestAnimationFrame(loop);
       else {
@@ -270,10 +312,16 @@ export function Stage({
       }
     };
     frame = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      if (!pausePaint.current) {
+        audioRef.current?.pause();
+        sounding.current = null;
+      }
+    };
     // drawFrame reads the latest plate through signature
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, duration, signature, held, recording, saving]);
+  }, [mode, duration, signature, held, recording, saving, sound]);
 
   const canExport = Boolean(piece.english.trim());
   const runnable = run.filter((item) => item.english.trim());
@@ -327,19 +375,23 @@ export function Stage({
     setRecording(sequence.length > 1 ? "run" : "line");
     const count = sequence.length;
     const ids = postableIds(sequence);
-    let shown = -1;
+    let shown = 0;
     try {
+      await cueSound(sequence[0]);
+      const track = sound ? spokenTrack()?.dest.stream.getAudioTracks()[0] : null;
       const blob = await recordReel(
         canvas,
         (t) => {
           const index = paintRun(t, sequence);
           setProgress(t);
-          if (count > 1 && index !== shown) {
+          if (index !== shown) {
             shown = index;
-            setRunAt(index);
+            if (count > 1) setRunAt(index);
+            void cueSound(sequence[index]);
           }
         },
         duration * count * 1000,
+        track,
       );
       const extension = blob.type.includes("mp4") ? "mp4" : "webm";
       const filename = count > 1 ? `tadhkeer-run.${extension}` : `tadhkeer-${slug}.${extension}`;
@@ -350,11 +402,13 @@ export function Stage({
         setShareNote("Ready. Send opens Instagram, TikTok, WhatsApp, and the other apps on this phone.");
       } else {
         downloadBlob(blob, filename);
-        setShareNote("Saved the reel. Open it from your camera roll to post.");
+        setShareNote("Saved the video. Open it from your camera roll to post.");
       }
     } catch {
-      setError("This browser cannot record a reel. Download the still, then add sound in your editor.");
+      setError("This browser cannot record a video. Download the image instead.");
     } finally {
+      audioRef.current?.pause();
+      sounding.current = null;
       pausePaint.current = false;
       lock.current = false;
       setRecording("off");
@@ -391,7 +445,7 @@ export function Stage({
         setReady(null);
         setShareNote("Sent. Paste the caption in the app if it did not travel with the video.");
       } else if (result === "saved") {
-        setShareNote("Saved the reel.");
+        setShareNote("Saved the video.");
       } else {
         setShareNote("");
       }
@@ -471,8 +525,8 @@ export function Stage({
           </div>
         </div>
         <div>
-          <p className="mb-2 text-sm text-[var(--ink)]">Reel length</p>
-          <div className="flex rounded-full border border-[var(--line)] p-1" role="group" aria-label="Reel length">
+          <p className="mb-2 text-sm text-[var(--ink)]">Video length</p>
+          <div className="flex rounded-full border border-[var(--line)] p-1" role="group" aria-label="Video length">
             {durations.map((seconds) => (
               <button
                 key={seconds}
@@ -640,8 +694,15 @@ export function Stage({
           </button>
         )}
 
+        <audio ref={audioRef} preload="auto" />
+        <label className="inline-flex items-center gap-2 text-sm text-[var(--ink)]">
+          <input type="checkbox" checked={sound} onChange={(event) => setSound(event.target.checked)} />
+          Sound
+        </label>
         <p className="text-sm leading-relaxed text-[var(--soft)]">
-          Reels are silent. No music or voice is added.
+          {sound
+            ? "The video speaks the English line. It is not a recitation."
+            : "Sound is off, so the video is quiet."}
         </p>
         <div className="flex flex-wrap gap-2">
         <MagneticButton
@@ -666,7 +727,7 @@ export function Stage({
           className="inline-flex items-center gap-2 rounded-full border border-[var(--accent)] bg-[var(--field)] px-5 py-3 text-base text-[var(--ink)] disabled:opacity-40"
         >
           <FilmStrip size={18} weight="regular" />
-          {recording === "line" ? "Recording…" : "Download reel"}
+          {recording === "line" ? "Recording…" : "Download video"}
         </MagneticButton>
         {advanced && (
         <button
@@ -681,7 +742,7 @@ export function Stage({
           className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-4 py-2 text-sm text-[var(--ink)] transition-colors hover:bg-[var(--wash)] active:scale-[0.98] disabled:opacity-40"
         >
           {mode === "line" ? <Pause size={16} weight="regular" /> : <Play size={16} weight="regular" />}
-          {mode === "line" ? "Stop" : "Play reel"}
+          {mode === "line" ? "Stop" : "Play video"}
         </button>
         )}
         {advanced && canShare && (
@@ -713,7 +774,7 @@ export function Stage({
             className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-4 py-2 text-sm text-[var(--ink)] transition-colors hover:bg-[var(--wash)] active:scale-[0.98] disabled:opacity-40"
           >
             {mode === "run" ? <Pause size={16} weight="regular" /> : <Stack size={16} weight="regular" />}
-            {mode === "run" ? "Stop" : "Play pinned reel"}
+            {mode === "run" ? "Stop" : "Play pinned video"}
           </button>
         )}
         {advanced && canRun && (
@@ -724,7 +785,7 @@ export function Stage({
             className="inline-flex items-center gap-2 rounded-full border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] px-4 py-2 text-sm text-[var(--ink)] transition-colors hover:bg-[var(--wash)] active:scale-[0.98] disabled:opacity-40"
           >
             <FilmStrip size={16} weight="regular" />
-            {recording === "run" ? "Recording…" : "Download pinned reel"}
+            {recording === "run" ? "Recording…" : "Download pinned video"}
           </button>
         )}
         {ready && (
@@ -812,8 +873,8 @@ export function Stage({
       )}
       <p className="text-sm leading-relaxed text-[var(--soft)]">
         {advanced
-          ? "Send opens the share sheet, including Instagram, TikTok, and WhatsApp. The caption is copied so you can paste it. A pinned reel fades from one line into the next. Drag the bar under the frame to hold a moment, then download that image. Reels are silent. Firm plate holds the type off the motion. Clear of the buttons keeps the type inside a Reel."
-          : "Download image saves this frame. Download reel saves a silent video of this line. Phone size shows the post at the width of a phone."}
+          ? "Send opens the share sheet, including Instagram, TikTok, and WhatsApp. The caption is copied so you can paste it. A pinned video fades from one line into the next and speaks each English line. Drag the bar under the frame to hold a moment, then download that image. Firm plate holds the type off the motion. Clear of the buttons keeps the type inside a Reel."
+          : "Download image saves this frame. Download video saves the motion and, when sound is on, speaks the English line. Phone size shows the post at the width of a phone."}
       </p>
       </div>
     </div>

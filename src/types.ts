@@ -9,12 +9,8 @@ export type Topic =
   | "gratitude"
   | "hope"
   | "time"
-  | "forgiveness"
-  | "knowledge"
   | "speech"
-  | "sincerity"
-  | "family"
-  | "hereafter";
+  | "sincerity";
 
 export type Piece = {
   id: string;

@@ -510,7 +510,7 @@ export function Studio() {
             <div>
               <h2 className="text-lg text-[var(--ink)]">Download</h2>
               <p className="mt-2 max-w-[62ch] text-sm leading-relaxed text-[var(--soft)]">
-                Download image saves a still. Download reel saves a silent video. No music or voice is added. Both buttons sit under the preview.
+                Download image saves a still. Download video saves the motion with the spoken English line. It is not a recitation.
               </p>
               <SourceCard piece={draft} />
             </div>
@@ -746,7 +746,7 @@ export function Studio() {
             )}
             {runCount >= 2 && (
               <p className="mt-2 text-sm leading-relaxed text-[var(--soft)]">
-                This run is {runCount * duration}s. Move a pin to change the order. The type fades from one line into the next. Reels are silent.
+                This run is {runCount * duration}s. Move a pin to change the order. The type fades from one line into the next. The video speaks each English line.
               </p>
             )}
             <ul className="mt-4 flex max-w-[68ch] flex-wrap gap-2">
@@ -963,10 +963,9 @@ export function Studio() {
           )}
 
           <p className="mt-8 max-w-[68ch] text-sm leading-relaxed text-[var(--soft)]">
-            Ayah and hadith lines are short English renderings, with the Arabic beside them. They are
-            not a published translation. View source opens Quran.com or Sunnah.com so you can check
-            the wording before you share it. Lines marked Reminder are original. Do not attribute
-            them to the Qur’an or the Prophet, peace be upon him.
+            The shelf is Qur’an and sahih hadith from Bukhari and Muslim. The English is a short
+            rendering, not a published translation. View source opens Quran.com or Sunnah.com so you
+            can check the wording before you share it.
           </p>
           <a
             href="mailto:creator@tadhkeer.space"

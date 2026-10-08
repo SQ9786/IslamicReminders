@@ -55,6 +55,15 @@ function isPiece(value: unknown): value is Piece {
   );
 }
 
+function onShelf(piece: Piece) {
+  return piece.id === "custom" || piece.id.startsWith("desk-") || libraryIds.has(piece.id);
+}
+
+function shelfDraft(value: unknown, fallback: Piece): Piece {
+  if (!isPiece(value) || !onShelf(value)) return fallback;
+  return { ...value, topic: value.topic as Topic };
+}
+
 export function defaultDesk(): Desk {
   return {
     draft: { ...library[0] },
@@ -89,13 +98,18 @@ export function loadDesk(): Desk {
     if (!isRecord(data)) return base;
     const themeId = typeof data.themeId === "string" ? data.themeId : base.themeId;
     const duration = Number(data.duration);
-    const tray = Array.isArray(data.tray) ? data.tray.filter(isPiece).slice(0, 7) : [];
+    const tray = Array.isArray(data.tray) ? data.tray.filter(isPiece).filter(onShelf).slice(0, 7) : [];
     const savedIds = Array.isArray(data.savedIds)
       ? [...new Set(data.savedIds.filter((id): id is string => typeof id === "string" && libraryIds.has(id)))]
       : [];
     return {
-      draft: isPiece(data.draft) ? { ...data.draft, topic: data.draft.topic as Topic } : base.draft,
-      kind: kindFilters.has(data.kind as Kind | "all") ? (data.kind as Kind | "all") : base.kind,
+      draft: shelfDraft(data.draft, base.draft),
+      kind:
+        data.kind === "reminder"
+          ? "all"
+          : kindFilters.has(data.kind as Kind | "all")
+            ? (data.kind as Kind | "all")
+            : base.kind,
       topic: topicFilters.has(data.topic as Topic | "all") ? (data.topic as Topic | "all") : base.topic,
       themeId: themes.some((theme) => theme.id === themeId) ? themeId : base.themeId,
       ratio: ratios.has(data.ratio as Ratio) ? (data.ratio as Ratio) : base.ratio,

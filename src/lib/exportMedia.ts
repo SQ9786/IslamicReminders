@@ -204,7 +204,17 @@ const reelTypes = [
 
 function openRecorder(stream: MediaStream) {
   if (typeof MediaRecorder === "undefined") return null;
-  for (const mime of reelTypes) {
+  const types =
+    stream.getAudioTracks().length > 0
+      ? [
+          "video/mp4;codecs=avc1.42E01E,mp4a.40.2",
+          "video/mp4",
+          "video/webm;codecs=vp9,opus",
+          "video/webm;codecs=vp8,opus",
+          "video/webm",
+        ]
+      : reelTypes;
+  for (const mime of types) {
     if (!MediaRecorder.isTypeSupported(mime)) continue;
     try {
       return {
@@ -222,10 +232,12 @@ export function recordReel(
   canvas: HTMLCanvasElement,
   draw: (t: number) => void,
   durationMs: number,
+  audioTrack?: MediaStreamTrack | null,
 ): Promise<Blob> {
   return new Promise((resolve, reject) => {
     draw(0);
     const stream = canvas.captureStream(30);
+    if (audioTrack && audioTrack.readyState === "live") stream.addTrack(audioTrack);
     const opened = openRecorder(stream);
     if (!opened) {
       reject(new Error("unsupported"));

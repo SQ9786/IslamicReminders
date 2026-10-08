@@ -9,19 +9,14 @@ export const topics: { id: Topic; label: string }[] = [
   { id: "gratitude", label: "Gratitude" },
   { id: "hope", label: "Hope" },
   { id: "time", label: "Time" },
-  { id: "forgiveness", label: "Forgiveness" },
-  { id: "knowledge", label: "Knowledge" },
   { id: "speech", label: "Speech" },
   { id: "sincerity", label: "Sincerity" },
-  { id: "family", label: "Family" },
-  { id: "hereafter", label: "Hereafter" },
 ];
 
 export const kinds: { id: Kind | "all"; label: string }[] = [
   { id: "all", label: "All" },
   { id: "ayah", label: "Ayah" },
   { id: "hadith", label: "Hadith" },
-  { id: "reminder", label: "Reminder" },
 ];
 
 export const library: Piece[] = [
@@ -210,15 +205,6 @@ export const library: Piece[] = [
     hook: "Ease is part of the teaching.",
   },
   {
-    id: "tirmidhi-camel",
-    kind: "hadith",
-    topic: "trust",
-    arabic: "اعْقِلْهَا وَتَوَكَّلْ",
-    english: "Tie it, and trust in Allah.",
-    source: "Jami' at-Tirmidhi",
-    hook: "Do the work, then trust.",
-  },
-  {
     id: "muslim-strong",
     kind: "hadith",
     topic: "hope",
@@ -238,15 +224,6 @@ export const library: Piece[] = [
       "Whoever believes in Allah and the Last Day, let him speak good or stay silent.",
     source: "Bukhari and Muslim",
     hook: "Silence is a complete sentence.",
-  },
-  {
-    id: "tirmidhi-smile",
-    kind: "hadith",
-    topic: "character",
-    arabic: "تَبَسُّمُكَ فِي وَجْهِ أَخِيكَ لَكَ صَدَقَةٌ",
-    english: "Your smile toward your brother is charity.",
-    source: "Jami' at-Tirmidhi",
-    hook: "Charity can be this small.",
   },
   {
     id: "bukhari-muslim-intent",
@@ -276,178 +253,6 @@ export const library: Piece[] = [
     source: "Bukhari and Muslim",
     hook: "Small and steady outlasts a burst.",
   },
-  {
-    id: "tirmidhi-concern",
-    kind: "hadith",
-    topic: "character",
-    arabic: "مِنْ حُسْنِ إِسْلَامِ الْمَرْءِ تَرْكُهُ مَا لَا يَعْنِيهِ",
-    english:
-      "From the beauty of a person's Islam is leaving what does not concern him.",
-    source: "Jami' at-Tirmidhi",
-    hook: "Leave what is not yours.",
-  },
-  {
-    id: "tirmidhi-taqwa",
-    kind: "hadith",
-    topic: "trust",
-    arabic: "اتَّقِ اللَّهَ حَيْثُمَا كُنْتَ",
-    english: "Be mindful of Allah wherever you are.",
-    source: "Jami' at-Tirmidhi",
-    hook: "The same mindfulness, every room.",
-  },
-  {
-    id: "rem-salah",
-    kind: "reminder",
-    topic: "prayer",
-    arabic: "",
-    english: "Pray this salah on time. The rest of the day can wait its turn.",
-    source: "A reminder",
-    hook: "Put the prayer in its place.",
-  },
-  {
-    id: "rem-dua",
-    kind: "reminder",
-    topic: "prayer",
-    arabic: "",
-    english: "The dua you rush past is often the one you needed.",
-    source: "A reminder",
-    hook: "Stay for one more sentence.",
-  },
-  {
-    id: "rem-speech",
-    kind: "reminder",
-    topic: "speech",
-    arabic: "",
-    english: "Speak if it helps. If it does not, leave it unsaid.",
-    source: "A reminder",
-    hook: "Not every thought needs a voice.",
-  },
-  {
-    id: "rem-thanks",
-    kind: "reminder",
-    topic: "gratitude",
-    arabic: "",
-    english: "Name one blessing before you ask for another.",
-    source: "A reminder",
-    hook: "Thanks first.",
-  },
-  {
-    id: "rem-quran",
-    kind: "reminder",
-    topic: "knowledge",
-    arabic: "",
-    english: "Five minutes of Qur'an will do more than an hour of worry.",
-    source: "A reminder",
-    hook: "Open it before you open the feed.",
-  },
-  {
-    id: "rem-return",
-    kind: "reminder",
-    topic: "hope",
-    arabic: "",
-    english: "Come back. The door was never locked.",
-    source: "A reminder",
-    hook: "Return is always available.",
-  },
-  {
-    id: "rem-plan",
-    kind: "reminder",
-    topic: "trust",
-    arabic: "",
-    english: "Make the plan. Then leave the outcome with Allah.",
-    source: "A reminder",
-    hook: "Your part has an edge. His does not.",
-  },
-  {
-    id: "rem-delay",
-    kind: "reminder",
-    topic: "patience",
-    arabic: "",
-    english: "A delayed answer is still an answer in the making.",
-    source: "A reminder",
-    hook: "Wait without inventing the ending.",
-  },
-  {
-    id: "rem-repent",
-    kind: "reminder",
-    topic: "forgiveness",
-    arabic: "",
-    english: "Repent before you rehearse the excuse.",
-    source: "A reminder",
-    hook: "A short return is enough to start.",
-  },
-  {
-    id: "rem-gaze",
-    kind: "reminder",
-    topic: "character",
-    arabic: "",
-    english: "Lower your gaze. The heart follows the eyes.",
-    source: "A reminder",
-    hook: "Guard the glance.",
-  },
-  {
-    id: "rem-learn",
-    kind: "reminder",
-    topic: "knowledge",
-    arabic: "",
-    english: "Learn one thing you can live today. Leave the rest for tomorrow.",
-    source: "A reminder",
-    hook: "One lesson, then practice.",
-  },
-  {
-    id: "rem-forgive",
-    kind: "reminder",
-    topic: "forgiveness",
-    arabic: "",
-    english: "Ask to be forgiven before you explain yourself.",
-    source: "A reminder",
-    hook: "Return first.",
-  },
-  {
-    id: "rem-intention",
-    kind: "reminder",
-    topic: "sincerity",
-    arabic: "",
-    english: "Check the reason before the action. A good deed with a crooked aim still misses.",
-    source: "A reminder",
-    hook: "The aim is part of the deed.",
-  },
-  {
-    id: "rem-family",
-    kind: "reminder",
-    topic: "family",
-    arabic: "",
-    english: "The people in your house are the first place your character shows.",
-    source: "A reminder",
-    hook: "Start the kindness at home.",
-  },
-  {
-    id: "rem-parents",
-    kind: "reminder",
-    topic: "family",
-    arabic: "",
-    english: "A soft word to a parent is a deed you can do today.",
-    source: "A reminder",
-    hook: "Call them before the day ends.",
-  },
-  {
-    id: "rem-hereafter",
-    kind: "reminder",
-    topic: "hereafter",
-    arabic: "",
-    english: "This day is short. The next life is the long one.",
-    source: "A reminder",
-    hook: "Live the hour you have.",
-  },
-  {
-    id: "rem-account",
-    kind: "reminder",
-    topic: "hereafter",
-    arabic: "",
-    english: "What you hide from people is still written.",
-    source: "A reminder",
-    hook: "The private deed counts.",
-  },
 ];
 
 const quranNote =
@@ -458,10 +263,6 @@ const muslimNote =
   "The English on the poster is a short rendering, not Abdul Hamid Siddiqui’s translation. Sunnah.com shows that English beside the Arabic.";
 const bothNote =
   "The English on the poster is a short rendering. Sunnah.com shows Dr. Muhsin Khan’s Bukhari translation and Abdul Hamid Siddiqui’s Muslim translation.";
-const tirmidhiNote =
-  "The English on the poster is a short rendering of part of a longer hadith. Read the published translation on Sunnah.com.";
-const reminderNote =
-  "An original reminder written for Tadhkeer. Do not attribute it to the Qur’an or the Prophet, peace be upon him.";
 
 const verified: Record<string, { source?: string; sourceUrl?: string; attribution: string }> = {
   "sharh-94-6": { sourceUrl: "https://quran.com/94/6", attribution: quranNote },
@@ -496,12 +297,6 @@ const verified: Record<string, { source?: string; sourceUrl?: string; attributio
     sourceUrl: "https://sunnah.com/bukhari:69",
     attribution: bukhariNote,
   },
-  "tirmidhi-camel": {
-    source: "Jami' at-Tirmidhi 2517",
-    sourceUrl: "https://sunnah.com/tirmidhi:2517",
-    attribution:
-      "The English on the poster is a short rendering. Tirmidhi called this narration gharib, and one of its narrators called it munkar. Read the entry on Sunnah.com before you share it as established.",
-  },
   "muslim-strong": {
     source: "Sahih Muslim 2664",
     sourceUrl: "https://sunnah.com/muslim:2664",
@@ -511,11 +306,6 @@ const verified: Record<string, { source?: string; sourceUrl?: string; attributio
     source: "Bukhari 6018 · Muslim 47",
     sourceUrl: "https://sunnah.com/bukhari:6018",
     attribution: bothNote,
-  },
-  "tirmidhi-smile": {
-    source: "Jami' at-Tirmidhi 1956",
-    sourceUrl: "https://sunnah.com/tirmidhi:1956",
-    attribution: tirmidhiNote,
   },
   "bukhari-muslim-intent": {
     source: "Bukhari 1 · Muslim 1907",
@@ -533,16 +323,6 @@ const verified: Record<string, { source?: string; sourceUrl?: string; attributio
     sourceUrl: "https://sunnah.com/bukhari:6464",
     attribution: bothNote,
   },
-  "tirmidhi-concern": {
-    source: "Jami' at-Tirmidhi 2317",
-    sourceUrl: "https://sunnah.com/tirmidhi:2317",
-    attribution: tirmidhiNote,
-  },
-  "tirmidhi-taqwa": {
-    source: "Jami' at-Tirmidhi 1987",
-    sourceUrl: "https://sunnah.com/tirmidhi:1987",
-    attribution: tirmidhiNote,
-  },
 };
 
 for (const piece of library) {
@@ -551,9 +331,11 @@ for (const piece of library) {
     if (extra.source) piece.source = extra.source;
     piece.sourceUrl = extra.sourceUrl;
     piece.attribution = extra.attribution;
-  } else if (piece.kind === "reminder") {
-    piece.attribution = reminderNote;
   }
+}
+
+export function soundSrc(piece: Piece): string | null {
+  return library.some((item) => item.id === piece.id) ? `/audio/${piece.id}.m4a` : null;
 }
 
 export function kickerFor(kind: Kind): string {
@@ -599,12 +381,8 @@ const topicTag: Record<Topic, string> = {
   gratitude: "#shukr",
   hope: "#yaqeen",
   time: "#deen",
-  forgiveness: "#tawbah",
-  knowledge: "#ilm",
   speech: "#speech",
   sincerity: "#niyyah",
-  family: "#family",
-  hereafter: "#akhirah",
 };
 
 export function buildCaption(piece: Piece): string {
