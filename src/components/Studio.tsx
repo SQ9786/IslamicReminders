@@ -11,6 +11,7 @@ import {
   Copy,
   MagnifyingGlass,
   Shuffle,
+  Stack,
   Star,
   X,
 } from "@phosphor-icons/react";
@@ -82,6 +83,7 @@ export function Studio() {
   const [seat, setSeat] = useState<Seat>(stored.seat);
   const [clear, setClear] = useState(stored.clear);
   const [guides, setGuides] = useState(stored.guides);
+  const [firm, setFirm] = useState(stored.firm);
   const [postedIds, setPostedIds] = useState<string[]>(stored.postedIds);
   const [freshOnly, setFreshOnly] = useState(stored.freshOnly);
   const [copiedRun, setCopiedRun] = useState(false);
@@ -137,6 +139,7 @@ export function Studio() {
         guides,
         postedIds,
         freshOnly,
+        firm,
       });
     }, 180);
     return () => window.clearTimeout(id);
@@ -159,6 +162,7 @@ export function Studio() {
     guides,
     postedIds,
     freshOnly,
+    firm,
   ]);
 
   function setColour(open: boolean) {
@@ -232,6 +236,24 @@ export function Studio() {
       return;
     }
     replaceDraft(pool[(index + 1) % pool.length]);
+  }
+
+  function fillTray() {
+    const room = 7 - tray.length;
+    if (room <= 0) {
+      setNotice("The desk holds seven lines. Unpin one first.");
+      return;
+    }
+    const pinnedIds = new Set(tray.map((piece) => piece.id));
+    const next = matches
+      .filter((piece) => piece.english.trim() && !postedIds.includes(piece.id) && !pinnedIds.has(piece.id))
+      .slice(0, room);
+    if (!next.length) {
+      setNotice("No unposted line left to pin in this filter.");
+      return;
+    }
+    setTray((current) => [...current, ...next.map((piece) => ({ ...piece }))]);
+    setNotice("");
   }
 
   function movePin(index: number, direction: -1 | 1) {
@@ -568,6 +590,14 @@ export function Studio() {
             <div className="flex items-baseline justify-between gap-3">
               <p className="text-sm text-[var(--ink)]">Pinned</p>
               <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={fillTray}
+                  className="inline-flex items-center gap-1.5 text-xs text-[var(--soft)] hover:text-[var(--ink)]"
+                >
+                  <Stack size={14} weight="regular" />
+                  Fill
+                </button>
                 {tray.some((piece) => piece.english.trim()) && (
                   <button
                     type="button"
@@ -578,12 +608,21 @@ export function Studio() {
                     {copiedRun ? "Copied" : "Copy captions"}
                   </button>
                 )}
+                {tray.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setTray([])}
+                    className="text-xs text-[var(--soft)] hover:text-[var(--ink)]"
+                  >
+                    Clear
+                  </button>
+                )}
                 <p className="text-xs tabular-nums text-[var(--faint)]">{tray.length}/7</p>
               </div>
             </div>
             {tray.length === 0 ? (
               <p className="mt-2 text-sm leading-relaxed text-[var(--faint)]">
-                Pin the line you are setting. Seven stay on this device, and two or more play as one reel.
+                Pin the line you are setting, or fill the tray from the unposted shelf. Seven stay on this device, and two or more play as one reel.
               </p>
             ) : (
               <ul className="mt-3 flex gap-2 overflow-x-auto pb-1">
@@ -856,6 +895,8 @@ export function Studio() {
             onClear={setClear}
             guides={guides}
             onGuides={setGuides}
+            firm={firm}
+            onFirm={setFirm}
             run={tray}
             motion={ground}
             videoRef={videoRef}

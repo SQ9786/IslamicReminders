@@ -49,6 +49,8 @@ type Props = {
   onClear: (value: boolean) => void;
   guides: boolean;
   onGuides: (value: boolean) => void;
+  firm: boolean;
+  onFirm: (value: boolean) => void;
   run: Piece[];
   motion: Motion | null;
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -88,6 +90,8 @@ export function Stage({
   onClear,
   guides,
   onGuides,
+  firm,
+  onFirm,
   run,
   motion,
   videoRef,
@@ -124,6 +128,7 @@ export function Stage({
     voice,
     seat,
     clear,
+    firm,
     fontsReady,
     motion?.id ?? "still",
     videoReady,
@@ -146,7 +151,7 @@ export function Stage({
   }
 
   function specFor(item: Piece): DrawSpec {
-    return { piece: item, theme, ratio, useHook, showMark, voice, seat, clear, plate: plate() };
+    return { piece: item, theme, ratio, useHook, showMark, voice, seat, clear, firm, plate: plate() };
   }
 
   function drawFrame(
@@ -746,6 +751,10 @@ export function Stage({
           <input type="checkbox" checked={guides} onChange={(event) => onGuides(event.target.checked)} />
           Show reel edges
         </label>
+        <label className="inline-flex items-center gap-2">
+          <input type="checkbox" checked={firm} onChange={(event) => onFirm(event.target.checked)} />
+          Firm plate
+        </label>
       </div>
 
       {shareNote && (
@@ -762,7 +771,7 @@ export function Stage({
         <p className="text-sm text-[var(--soft)]">Write the English line before you export.</p>
       )}
       <p className="text-xs leading-relaxed text-[var(--faint)]">
-        Send opens the share sheet, including Instagram, TikTok, and WhatsApp. The caption is copied so you can paste it. A run fades from one line into the next. Drag the bar under the frame to hold a moment, then save that still. The reel is silent. Clear of the buttons keeps the type inside a Reel.
+        Send opens the share sheet, including Instagram, TikTok, and WhatsApp. The caption is copied so you can paste it. A run fades from one line into the next. Drag the bar under the frame to hold a moment, then save that still. The reel is silent. Firm plate holds the type off the motion. Clear of the buttons keeps the type inside a Reel.
       </p>
       </div>
     </div>

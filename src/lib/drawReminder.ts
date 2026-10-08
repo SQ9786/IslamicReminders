@@ -30,6 +30,7 @@ export type DrawSpec = {
   plate?: Plate | null;
   typeFade?: number;
   pass?: "all" | "ground" | "type";
+  firm?: boolean;
 };
 
 function textRoom(ratio: Ratio, clear: boolean) {
@@ -248,14 +249,19 @@ export function drawReminder(
 
   if (pass !== "type") {
   ctx.clearRect(0, 0, w, h);
+  const firm = Boolean(spec.firm);
   if (hasPlate && plate) {
     drawCover(ctx, plate.source, plate.width, plate.height, w, h);
     ctx.fillStyle = plate.veil;
     ctx.fillRect(0, 0, w, h);
+    if (firm) {
+      ctx.fillStyle = plate.light ? "rgba(255,248,240,0.24)" : "rgba(0,0,0,0.24)";
+      ctx.fillRect(0, 0, w, h);
+    }
     const band = ctx.createLinearGradient(0, h * 0.2, 0, h * 0.82);
     band.addColorStop(0, plate.light ? "rgba(255,248,240,0)" : "rgba(0,0,0,0)");
-    band.addColorStop(0.5, plate.light ? "rgba(255,248,240,0.28)" : "rgba(0,0,0,0.34)");
-    band.addColorStop(1, plate.light ? "rgba(255,248,240,0.08)" : "rgba(0,0,0,0.2)");
+    band.addColorStop(0.5, plate.light ? (firm ? "rgba(255,248,240,0.5)" : "rgba(255,248,240,0.28)") : firm ? "rgba(0,0,0,0.58)" : "rgba(0,0,0,0.34)");
+    band.addColorStop(1, plate.light ? (firm ? "rgba(255,248,240,0.18)" : "rgba(255,248,240,0.08)") : firm ? "rgba(0,0,0,0.36)" : "rgba(0,0,0,0.2)");
     ctx.fillStyle = band;
     ctx.fillRect(0, 0, w, h);
   } else {
@@ -306,7 +312,7 @@ export function drawReminder(
 
   const vignette = ctx.createRadialGradient(w / 2, h * 0.46, w * 0.18, w / 2, h * 0.5, w * 0.78);
   vignette.addColorStop(0, "rgba(0,0,0,0)");
-  vignette.addColorStop(1, "rgba(0,0,0,0.28)");
+  vignette.addColorStop(1, firm ? "rgba(0,0,0,0.42)" : "rgba(0,0,0,0.28)");
   ctx.fillStyle = vignette;
   ctx.fillRect(0, 0, w, h);
 

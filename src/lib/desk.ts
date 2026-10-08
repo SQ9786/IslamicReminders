@@ -32,6 +32,7 @@ export type Desk = {
   guides: boolean;
   postedIds: string[];
   freshOnly: boolean;
+  firm: boolean;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -74,6 +75,7 @@ export function defaultDesk(): Desk {
     guides: false,
     postedIds: [],
     freshOnly: false,
+    firm: false,
   };
 }
 
@@ -110,6 +112,7 @@ export function loadDesk(): Desk {
       guides: data.guides === true,
       postedIds: postedFrom(data.postedIds),
       freshOnly: data.freshOnly === true,
+      firm: data.firm === true,
     };
   } catch {
     return base;
