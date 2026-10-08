@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import {
+  ArrowRight,
   ArrowsIn,
   ArrowsOut,
+  Check,
   CheckCircle,
+  Copy,
   DeviceMobile,
   DownloadSimple,
   FilmStrip,
@@ -63,6 +66,8 @@ type Props = {
   desk?: "phone" | "studio";
   compact?: boolean;
   span?: "chip" | "sample" | "full";
+  onNext?: () => void;
+  notice?: string;
 };
 
 const ratios: Ratio[] = ["9:16", "4:5", "1:1"];
@@ -108,6 +113,8 @@ export function Stage({
   desk = "studio",
   compact = false,
   span = "full",
+  onNext,
+  notice = "",
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -130,6 +137,7 @@ export function Stage({
   const [ready, setReady] = useState<{ blob: Blob; filename: string; text: string; ids: string[] } | null>(null);
   const [markIds, setMarkIds] = useState<string[]>([]);
   const [shareNote, setShareNote] = useState("");
+  const [captionCopied, setCaptionCopied] = useState(false);
   const [error, setError] = useState("");
   const [phone, setPhone] = useState(false);
   const [sound, setSound] = useState(true);
@@ -298,6 +306,8 @@ export function Stage({
   const pieceKey = `${piece.id}|${piece.english}|${piece.arabic}|${piece.hook}|${piece.source}`;
   useEffect(() => {
     setHeld(null);
+    setMode("off");
+    setCaptionCopied(false);
   }, [pieceKey]);
 
   useEffect(() => {
@@ -458,6 +468,17 @@ export function Stage({
       setRunAt(-1);
       paint(1);
       setProgress(1);
+    }
+  }
+
+  async function copyCaption() {
+    if (!piece.english.trim()) return;
+    try {
+      await navigator.clipboard.writeText(buildCaption(piece));
+      setCaptionCopied(true);
+      window.setTimeout(() => setCaptionCopied(false), 1600);
+    } catch {
+      setShareNote("Clipboard is blocked in this browser. Select the caption and copy it yourself.");
     }
   }
 
@@ -790,9 +811,40 @@ export function Stage({
           className={
             studio
               ? "flex flex-wrap gap-2"
-              : "fixed inset-x-0 bottom-0 z-40 flex items-stretch gap-1.5 border-t border-[var(--line)] bg-[var(--page)]/95 px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md"
+              : "fixed inset-x-0 bottom-0 z-40 border-t border-[var(--line)] bg-[var(--page)]/95 px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md"
           }
         >
+        {!studio && !compact && piece.english.trim() && (
+          <div className="mb-2">
+            <div className="flex items-start gap-2">
+              <p className="line-clamp-2 min-w-0 flex-1 text-xs leading-relaxed text-[var(--ink)]">{piece.english}</p>
+              <button
+                type="button"
+                onClick={() => void copyCaption()}
+                className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--line)] px-3 py-1 text-xs text-[var(--ink)]"
+              >
+                {captionCopied ? <Check size={14} weight="regular" /> : <Copy size={14} weight="regular" />}
+                {captionCopied ? "Copied" : "Copy"}
+              </button>
+              {onNext && (
+                <button
+                  type="button"
+                  onClick={onNext}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--line)] px-3 py-1 text-xs text-[var(--ink)]"
+                >
+                  <ArrowRight size={14} weight="regular" />
+                  Next
+                </button>
+              )}
+            </div>
+            {notice && (
+              <p className="mt-1 text-xs text-[var(--soft)]" role="status">
+                {notice}
+              </p>
+            )}
+          </div>
+        )}
+        <div className={studio ? "contents" : "flex items-stretch gap-1.5"}>
         {!studio && (
           <button
             type="button"
@@ -921,6 +973,7 @@ export function Stage({
             {saving ? "Packing…" : "Save stills"}
           </button>
         )}
+        </div>
         </div>
         {ready && (
           <button

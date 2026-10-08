@@ -434,7 +434,7 @@ export function Studio() {
   useEffect(() => {
     if (studio || pathStep !== "download") return;
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [pathStep, studio]);
+  }, [pathStep, studio, draft.id]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -449,7 +449,7 @@ export function Studio() {
 
   return (
     <div
-      className={`relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-[1560px] flex-col px-4 py-6 md:px-8 md:py-8 ${studio ? "" : "pb-36"}`}
+      className={`relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-[1560px] flex-col px-4 py-6 md:px-8 md:py-8 ${studio ? "" : pathStep === "download" ? "pb-48" : "pb-36"}`}
       style={shellVars(theme)}
     >
       {ground && (
@@ -1080,6 +1080,8 @@ export function Studio() {
             desk={desk}
             compact={compact}
             span={span}
+            onNext={nextUnposted}
+            notice={notice}
           />
         </section>
       </div>
