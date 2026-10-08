@@ -61,6 +61,7 @@ type Props = {
   onPosted: (ids: string[]) => void;
   advanced?: boolean;
   desk?: "phone" | "studio";
+  compact?: boolean;
 };
 
 const ratios: Ratio[] = ["9:16", "4:5", "1:1"];
@@ -104,6 +105,7 @@ export function Stage({
   onPosted,
   advanced = true,
   desk = "studio",
+  compact = false,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -369,7 +371,9 @@ export function Stage({
         ? "min(92vw, calc(78dvh * 4 / 5))"
         : "min(92vw, 78dvh)"
     : !studio
-      ? "min(100%, 420px)"
+      ? compact
+        ? "min(28vw, 112px)"
+        : "min(100%, 420px)"
       : phone
         ? "min(100%, 280px)"
         : ratio === "9:16"
@@ -672,6 +676,7 @@ export function Stage({
           </div>
         </div>
 
+        {!compact && (
         <div className="flex items-center justify-between text-sm text-[var(--soft)]">
           <p className="tabular-nums">
             {size.w} × {size.h}
@@ -681,7 +686,10 @@ export function Stage({
             {mode === "run" && runAt >= 0 ? ` · ${runAt + 1}/${runnable.length}` : ""}
           </p>
         </div>
+        )}
 
+        {!compact && (
+        <>
         <div
           className={`relative h-4 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${mode === "off" && !busy ? "cursor-ew-resize" : ""}`}
           role="slider"
@@ -732,9 +740,11 @@ export function Stage({
             Release the frame
           </button>
         )}
+        </>
+        )}
 
         <audio ref={audioRef} preload="auto" />
-        {!studio && (
+        {!studio && !compact && (
           <div>
             <p className="mb-2 text-sm text-[var(--ink)]">Video length</p>
             <div className="flex rounded-full border border-[var(--line)] p-1" role="group" aria-label="Video length">
@@ -986,7 +996,7 @@ export function Stage({
           : "Play video lets you hear it first. Download image saves this frame. Download video saves the motion, and the voice starts when the English line appears. Phone size shows the post at the width of a phone."}
       </p>
       )}
-      {!studio && (
+      {!studio && !compact && (
         <p className="text-sm leading-relaxed text-[var(--soft)]">
           {sound
             ? "The voice starts when the English line appears. It is not a recitation."

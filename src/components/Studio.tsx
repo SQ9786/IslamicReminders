@@ -106,10 +106,13 @@ export function Studio() {
   const [more, setMore] = useState(false);
   const desk = useDesk();
   const studio = desk === "studio";
+  const compact = !studio && pathStep !== "download";
   const [copiedRun, setCopiedRun] = useState(false);
   const [videoReady, setVideoReady] = useState(0);
   const [undoCount, setUndoCount] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
+  const activeRow = useRef<HTMLLIElement>(null);
+  const skipRowScroll = useRef(true);
   const videoRef = useRef<HTMLVideoElement>(null);
   const history = useRef<Piece[]>([]);
   const stepRef = useRef<(direction: 1 | -1) => void>(() => {});
@@ -419,6 +422,20 @@ export function Studio() {
   }, []);
 
   useEffect(() => {
+    if (skipRowScroll.current) {
+      skipRowScroll.current = false;
+      return;
+    }
+    if (studio || pathStep !== "reminder") return;
+    activeRow.current?.scrollIntoView({ block: "center" });
+  }, [draft.id, studio, pathStep]);
+
+  useEffect(() => {
+    if (studio || pathStep !== "download") return;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [pathStep, studio]);
+
+  useEffect(() => {
     const video = videoRef.current;
     if (!video || !ground) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -455,19 +472,18 @@ export function Studio() {
       <header className={`${studio ? "mt-8" : "mt-4"} flex flex-wrap items-end justify-between gap-6`}>
         <div>
           <p className="text-[0.72rem] font-medium tracking-[0.28em] text-[var(--accent)]">TADHKEER</p>
-          <h1
-            className={`font-display max-w-[18ch] text-balance font-medium leading-[1.02] tracking-[-0.03em] text-[var(--ink)] ${
-              studio ? "mt-3 text-[2.4rem] md:text-5xl" : "mt-2 text-[1.75rem]"
-            }`}
-          >
-            Create beautiful Islamic posts and reels
-          </h1>
-          <p className="mt-4 max-w-[62ch] text-base leading-relaxed text-[var(--soft)]">
-            {studio
-              ? "Choose a reminder, choose a style, then download. The preview stays beside you."
-              : "Pick a line and save it to your phone."}
-          </p>
-          <nav className="mt-5 flex flex-wrap gap-2" aria-label="Create a post">
+          {!studio && <h1 className="sr-only">Create beautiful Islamic posts and reels</h1>}
+          {studio && (
+            <>
+              <h1 className="font-display mt-3 max-w-[18ch] text-balance text-[2.4rem] font-medium leading-[1.02] tracking-[-0.03em] text-[var(--ink)] md:text-5xl">
+                Create beautiful Islamic posts and reels
+              </h1>
+              <p className="mt-4 max-w-[62ch] text-base leading-relaxed text-[var(--soft)]">
+                Choose a reminder, choose a style, then download. The preview stays beside you.
+              </p>
+            </>
+          )}
+          <nav className={`${studio ? "mt-5" : "mt-3"} flex flex-wrap gap-2`} aria-label="Create a post">
             {(
               studio
                 ? ([
@@ -500,13 +516,15 @@ export function Studio() {
         </div>
         <div className="flex flex-col items-start gap-3 md:items-end">
           <InstallHome />
-          <p className="text-sm text-[var(--soft)]">
-            <span className="tabular-nums">{library.length}</span> lines
-          </p>
+          {studio && (
+            <p className="text-sm text-[var(--soft)]">
+              <span className="tabular-nums">{library.length}</span> lines
+            </p>
+          )}
         </div>
       </header>
 
-      <div className="mt-8 grid grid-cols-1 items-start gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(320px,440px)] lg:gap-8">
+      <div className={`grid grid-cols-1 items-start lg:grid-cols-[minmax(0,1fr)_minmax(320px,440px)] ${studio ? "mt-8 gap-10 lg:gap-8" : "mt-4 gap-6"}`}>
         <section id="line" className="order-2 lg:order-1">
           {pathStep === "style" && (
             <div>
@@ -569,7 +587,7 @@ export function Studio() {
             ))}
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className={`mt-4 flex gap-2 ${studio ? "flex-wrap" : "-mx-4 flex-nowrap overflow-x-auto px-4 pb-1"}`}>
             <FilterChip active={topic === "all"} onClick={() => setTopic("all")}>
               Any topic
             </FilterChip>
@@ -808,12 +826,29 @@ export function Studio() {
 
           {pathStep === "reminder" && (
           <div className="mt-8 border-t border-[var(--line)]">
-            <div className="flex items-baseline justify-between py-3">
+            <div className="flex items-center justify-between gap-3 py-3">
               <p className="text-sm text-[var(--ink)]">Library</p>
-              <p className="text-xs tabular-nums text-[var(--faint)]">
-                {matches.length === 0 ? "No matches" : `${matches.length} showing`}
-              </p>
+              <div className="flex items-center gap-3">
+                {!studio && (
+                  <button
+                    type="button"
+                    onClick={nextUnposted}
+                    className="inline-flex items-center gap-1 rounded-full border border-[var(--line)] px-3 py-1 text-sm text-[var(--ink)] hover:bg-[var(--wash)]"
+                  >
+                    <ArrowRight size={14} weight="regular" />
+                    Next
+                  </button>
+                )}
+                <p className="text-xs tabular-nums text-[var(--faint)]">
+                  {matches.length === 0 ? "No matches" : `${matches.length} showing`}
+                </p>
+              </div>
             </div>
+            {!studio && notice && (
+              <p className="pb-2 text-sm text-[var(--soft)]" role="status">
+                {notice}
+              </p>
+            )}
             {matches.length === 0 ? (
               <p className="pb-6 text-sm leading-relaxed text-[var(--soft)]">
                 {emptyLibraryCopy(savedOnly, freshOnly, query, savedIds.length)}
@@ -828,10 +863,11 @@ export function Studio() {
                     return (
                       <motion.li
                         key={piece.id}
+                        ref={active ? activeRow : undefined}
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: Math.min(index, 8) * 0.03, duration: 0.28 }}
-                        className={`flex border-t border-[var(--line)] ${active ? "bg-[var(--wash)]" : ""}`}
+                        className={`flex scroll-mt-28 border-t border-[var(--line)] scroll-mb-28 ${active ? "bg-[var(--wash)]" : ""}`}
                       >
                         <button
                           type="button"
@@ -1040,6 +1076,7 @@ export function Studio() {
             onPosted={rememberPosted}
             advanced={studio && more}
             desk={desk}
+            compact={compact}
           />
         </section>
       </div>
