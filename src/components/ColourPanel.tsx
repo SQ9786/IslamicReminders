@@ -12,6 +12,7 @@ type Props = {
   onTheme: (id: string) => void;
   onBackground: (id: string | null) => void;
   inline?: boolean;
+  row?: boolean;
 };
 
 export function ColourLauncher({
@@ -40,14 +41,14 @@ export function ColourLauncher({
   );
 }
 
-export function ColourPanel({ themeId, backgroundId, open, onOpen, onTheme, onBackground, inline = false }: Props) {
+export function ColourPanel({ themeId, backgroundId, open, onOpen, onTheme, onBackground, inline = false, row = false }: Props) {
   const theme = themes.find((item) => item.id === themeId) ?? themes[0];
 
   if (inline) {
     return (
       <div>
-        <MotionList backgroundId={backgroundId} onBackground={onBackground} />
-        <ThemeList themeId={themeId} onTheme={onTheme} />
+        <MotionList backgroundId={backgroundId} onBackground={onBackground} row={row} />
+        <ThemeList themeId={themeId} onTheme={onTheme} row={row} />
       </div>
     );
   }
@@ -168,20 +169,22 @@ export function ColourPanel({ themeId, backgroundId, open, onOpen, onTheme, onBa
 function MotionList({
   backgroundId,
   onBackground,
+  row = false,
 }: {
   backgroundId: string | null;
   onBackground: (id: string | null) => void;
+  row?: boolean;
 }) {
   return (
     <>
     <p className="mt-4 text-sm text-[var(--ink)]">Motion</p>
-    <ul className="mt-2 grid grid-cols-2 gap-2">
+    <ul className={row ? "-mx-4 mt-2 flex gap-2 overflow-x-auto px-4 pb-1" : "mt-2 grid grid-cols-2 gap-2"}>
       <li>
         <button
           type="button"
           onClick={() => onBackground(null)}
           aria-pressed={backgroundId === null}
-          className={`w-full rounded-2xl border p-1.5 text-left active:scale-[0.98] ${
+          className={`${row ? "w-28 shrink-0" : "w-full"} rounded-2xl border p-1.5 text-left active:scale-[0.98] ${
             backgroundId === null ? "border-[var(--accent)] bg-[var(--wash)]" : "border-[var(--line)]"
           }`}
         >
@@ -198,7 +201,7 @@ function MotionList({
               type="button"
               onClick={() => onBackground(item.id)}
               aria-pressed={selected}
-              className={`w-full rounded-2xl border p-1.5 text-left active:scale-[0.98] ${
+              className={`${row ? "w-28 shrink-0" : "w-full"} rounded-2xl border p-1.5 text-left active:scale-[0.98] ${
                 selected ? "border-[var(--accent)] bg-[var(--wash)]" : "border-[var(--line)]"
               }`}
             >
@@ -218,30 +221,47 @@ function MotionList({
   );
 }
 
-function ThemeList({ themeId, onTheme }: { themeId: string; onTheme: (id: string) => void }) {
+function ThemeList({
+  themeId,
+  onTheme,
+  row = false,
+}: {
+  themeId: string;
+  onTheme: (id: string) => void;
+  row?: boolean;
+}) {
   return (
     <>
     <p className="mt-5 text-sm text-[var(--ink)]">Colour</p>
-    <ul className="mt-2 grid gap-2">
+    <ul className={row ? "-mx-4 mt-2 flex gap-2 overflow-x-auto px-4 pb-1" : "mt-2 grid gap-2"}>
       {themes.map((item) => {
         const selected = item.id === themeId;
         return (
-          <li key={item.id}>
+          <li key={item.id} className={row ? "shrink-0" : undefined}>
             <button
               type="button"
               onClick={() => onTheme(item.id)}
               aria-pressed={selected}
-              className={`flex w-full items-center gap-3 rounded-2xl border px-2 py-2 text-left active:scale-[0.98] ${
-                selected ? "border-[var(--accent)] bg-[var(--wash)]" : "border-[var(--line)]"
-              }`}
+              className={
+                row
+                  ? `flex w-[4.6rem] flex-col items-center gap-1.5 rounded-2xl border px-2 py-2 active:scale-[0.98] ${
+                      selected ? "border-[var(--accent)] bg-[var(--wash)]" : "border-[var(--line)]"
+                    }`
+                  : `flex w-full items-center gap-3 rounded-2xl border px-2 py-2 text-left active:scale-[0.98] ${
+                      selected ? "border-[var(--accent)] bg-[var(--wash)]" : "border-[var(--line)]"
+                    }`
+              }
             >
               <span
-                className="h-14 w-14 shrink-0 rounded-xl"
+                className={row ? "h-12 w-12 shrink-0 rounded-xl" : "h-14 w-14 shrink-0 rounded-xl"}
                 style={{
                   background: `linear-gradient(165deg, ${item.bg[0]}, ${item.bg[2]})`,
                   boxShadow: `inset 0 0 0 1px ${item.rule}`,
                 }}
               />
+              {row ? (
+                <span className="text-xs text-[var(--ink)]">{item.name}</span>
+              ) : (
               <span className="min-w-0">
                 <span className="block text-sm text-[var(--ink)]">{item.name}</span>
                 <span className="mt-1 block text-xs uppercase tracking-[0.16em] text-[var(--soft)]">
@@ -258,6 +278,7 @@ function ThemeList({ themeId, onTheme }: { themeId: string; onTheme: (id: string
                   <span className="h-2.5 w-2.5 rounded-full" style={{ background: item.shell.accent }} />
                 </span>
               </span>
+              )}
             </button>
           </li>
         );

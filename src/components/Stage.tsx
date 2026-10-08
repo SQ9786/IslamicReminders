@@ -62,6 +62,7 @@ type Props = {
   advanced?: boolean;
   desk?: "phone" | "studio";
   compact?: boolean;
+  span?: "chip" | "sample" | "full";
 };
 
 const ratios: Ratio[] = ["9:16", "4:5", "1:1"];
@@ -106,6 +107,7 @@ export function Stage({
   advanced = true,
   desk = "studio",
   compact = false,
+  span = "full",
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -371,9 +373,11 @@ export function Stage({
         ? "min(92vw, calc(78dvh * 4 / 5))"
         : "min(92vw, 78dvh)"
     : !studio
-      ? compact
+      ? span === "chip"
         ? "min(28vw, 112px)"
-        : "min(100%, 420px)"
+        : span === "sample"
+          ? "min(52vw, 200px)"
+          : "min(100%, 420px)"
       : phone
         ? "min(100%, 280px)"
         : ratio === "9:16"

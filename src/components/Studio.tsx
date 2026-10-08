@@ -107,6 +107,7 @@ export function Studio() {
   const desk = useDesk();
   const studio = desk === "studio";
   const compact = !studio && pathStep !== "download";
+  const span = studio ? "full" : pathStep === "reminder" ? "chip" : pathStep === "style" ? "sample" : "full";
   const [copiedRun, setCopiedRun] = useState(false);
   const [videoReady, setVideoReady] = useState(0);
   const [undoCount, setUndoCount] = useState(0);
@@ -543,6 +544,7 @@ export function Studio() {
                   onTheme={setThemeId}
                   onBackground={setBackgroundId}
                   inline
+                  row={!studio}
                 />
               </div>
               <button
@@ -550,7 +552,7 @@ export function Studio() {
                 onClick={() => setPathStep("download")}
                 className="mt-6 inline-flex items-center gap-2 rounded-full bg-[var(--accent)] px-5 py-3 text-base text-[var(--accent-ink)] active:scale-[0.98]"
               >
-                Generate design
+                {studio ? "Generate design" : "Save"}
               </button>
             </div>
           )}
@@ -1077,6 +1079,7 @@ export function Studio() {
             advanced={studio && more}
             desk={desk}
             compact={compact}
+            span={span}
           />
         </section>
       </div>
