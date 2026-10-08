@@ -105,6 +105,7 @@ export function Stage({
   const audioRef = useRef<HTMLAudioElement>(null);
   const soundGraph = useRef<{ ctx: AudioContext; dest: MediaStreamAudioDestinationNode } | null>(null);
   const sounding = useRef<string | null>(null);
+  const spoken = useRef<string | null>(null);
   const lock = useRef(false);
   const pausePaint = useRef(false);
   const [fontsReady, setFontsReady] = useState(false);
@@ -232,25 +233,57 @@ export function Stage({
     return soundGraph.current;
   }
 
-  async function cueSound(item: Piece | undefined) {
+  function speechAt(item: Piece, audioMs: number, count: number) {
+    const slotMs = duration * 1000;
+    const withHook = useHook && Boolean(item.hook.trim());
+    const wanted = (withHook ? 0.44 : 0.16) * slotMs;
+    const endMargin = count > 1 ? slotMs * 0.16 + 80 : 120;
+    const latest = Math.max(0, slotMs - audioMs - endMargin);
+    return Math.min(wanted, latest) / slotMs;
+  }
+
+  function quietSound() {
+    audioRef.current?.pause();
+    sounding.current = null;
+    spoken.current = null;
+  }
+
+  function armLine(item: Piece | undefined) {
     const audio = audioRef.current;
     const src = item && sound ? soundSrc(item) : null;
     if (!audio || !item || !src) {
-      audio?.pause();
-      sounding.current = null;
+      quietSound();
       return;
     }
     const graph = spokenTrack();
-    if (graph?.ctx.state === "suspended") await graph.ctx.resume();
-    if (sounding.current === item.id && !audio.paused) return;
+    if (graph?.ctx.state === "suspended") void graph.ctx.resume();
+    if (sounding.current === item.id) return;
+    spoken.current = null;
     sounding.current = item.id;
+    audio.pause();
     audio.src = src;
     audio.currentTime = 0;
-    try {
-      await audio.play();
-    } catch {
-      sounding.current = null;
-    }
+  }
+
+  function speakIfDue(item: Piece | undefined, local: number, count: number) {
+    const audio = audioRef.current;
+    if (!audio || !item || spoken.current === item.id || sounding.current !== item.id) return;
+    const audioMs = Number.isFinite(audio.duration) ? audio.duration * 1000 : 0;
+    if (!audioMs || local + 0.004 < speechAt(item, audioMs, count)) return;
+    spoken.current = item.id;
+    void audio.play().catch(() => {
+      spoken.current = null;
+    });
+  }
+
+  function followSound(t: number, sequence: Piece[]) {
+    const count = Math.max(1, sequence.length);
+    const layers = runLayers(t, count);
+    const current = layers[layers.length - 1];
+    if (!current) return;
+    const item = sequence[current.index];
+    armLine(item);
+    speakIfDue(item, current.local, count);
   }
 
   const pieceKey = `${piece.id}|${piece.english}|${piece.arabic}|${piece.hook}|${piece.source}`;
@@ -264,8 +297,7 @@ export function Stage({
     if (!canvas) return;
 
     if (mode === "off") {
-      audioRef.current?.pause();
-      sounding.current = null;
+      quietSound();
       const frameT = held ?? 1;
       setProgress(frameT);
       setRunAt(-1);
@@ -300,10 +332,10 @@ export function Stage({
       const t = Math.min(1, (now - start) / totalMs);
       const index = paintRun(t, sequence);
       setProgress(t);
+      followSound(t, sequence);
       if (index !== shown) {
         shown = index;
         if (mode === "run") setRunAt(index);
-        void cueSound(sequence[index]);
       }
       if (t < 1) frame = requestAnimationFrame(loop);
       else {
@@ -314,10 +346,7 @@ export function Stage({
     frame = requestAnimationFrame(loop);
     return () => {
       cancelAnimationFrame(frame);
-      if (!pausePaint.current) {
-        audioRef.current?.pause();
-        sounding.current = null;
-      }
+      if (!pausePaint.current) quietSound();
     };
     // drawFrame reads the latest plate through signature
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -375,19 +404,22 @@ export function Stage({
     setRecording(sequence.length > 1 ? "run" : "line");
     const count = sequence.length;
     const ids = postableIds(sequence);
-    let shown = 0;
+    let shown = -1;
     try {
-      await cueSound(sequence[0]);
-      const track = sound ? spokenTrack()?.dest.stream.getAudioTracks()[0] : null;
+      quietSound();
+      armLine(sequence[0]);
+      const graph = spokenTrack();
+      if (graph?.ctx.state === "suspended") await graph.ctx.resume();
+      const track = sound ? graph?.dest.stream.getAudioTracks()[0] : null;
       const blob = await recordReel(
         canvas,
         (t) => {
           const index = paintRun(t, sequence);
           setProgress(t);
+          followSound(t, sequence);
           if (index !== shown) {
             shown = index;
             if (count > 1) setRunAt(index);
-            void cueSound(sequence[index]);
           }
         },
         duration * count * 1000,
@@ -407,8 +439,7 @@ export function Stage({
     } catch {
       setError("This browser cannot record a video. Download the image instead.");
     } finally {
-      audioRef.current?.pause();
-      sounding.current = null;
+      quietSound();
       pausePaint.current = false;
       lock.current = false;
       setRecording("off");
@@ -695,15 +726,23 @@ export function Stage({
         )}
 
         <audio ref={audioRef} preload="auto" />
-        <label className="inline-flex items-center gap-2 text-sm text-[var(--ink)]">
-          <input type="checkbox" checked={sound} onChange={(event) => setSound(event.target.checked)} />
-          Sound
-        </label>
-        <p className="text-sm leading-relaxed text-[var(--soft)]">
-          {sound
-            ? "The video speaks the English line. It is not a recitation."
-            : "Sound is off, so the video is quiet."}
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            aria-pressed={sound}
+            onClick={() => setSound((value) => !value)}
+            className={`rounded-full px-3 py-1 text-sm transition-colors ${
+              sound ? "bg-[var(--wash)] text-[var(--ink)]" : "text-[var(--soft)] hover:text-[var(--ink)]"
+            }`}
+          >
+            {sound ? "Sound on" : "Sound off"}
+          </button>
+          <p className="text-sm leading-relaxed text-[var(--soft)]">
+            {sound
+              ? "The voice starts when the English line appears. It is not a recitation."
+              : "Sound is off, so the video is quiet."}
+          </p>
+        </div>
         <div className="flex flex-wrap gap-2">
         <MagneticButton
           onClick={() => {
@@ -729,7 +768,6 @@ export function Stage({
           <FilmStrip size={18} weight="regular" />
           {recording === "line" ? "Recording…" : "Download video"}
         </MagneticButton>
-        {advanced && (
         <button
           type="button"
           onClick={() => {
@@ -739,12 +777,11 @@ export function Stage({
             setMode((value) => (value === "line" ? "off" : "line"));
           }}
           disabled={!canExport || busy}
-          className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-4 py-2 text-sm text-[var(--ink)] transition-colors hover:bg-[var(--wash)] active:scale-[0.98] disabled:opacity-40"
+          className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-5 py-3 text-base text-[var(--ink)] transition-colors hover:bg-[var(--wash)] active:scale-[0.98] disabled:opacity-40"
         >
-          {mode === "line" ? <Pause size={16} weight="regular" /> : <Play size={16} weight="regular" />}
+          {mode === "line" ? <Pause size={18} weight="regular" /> : <Play size={18} weight="regular" />}
           {mode === "line" ? "Stop" : "Play video"}
         </button>
-        )}
         {advanced && canShare && (
           <button
             type="button"
@@ -874,7 +911,7 @@ export function Stage({
       <p className="text-sm leading-relaxed text-[var(--soft)]">
         {advanced
           ? "Send opens the share sheet, including Instagram, TikTok, and WhatsApp. The caption is copied so you can paste it. A pinned video fades from one line into the next and speaks each English line. Drag the bar under the frame to hold a moment, then download that image. Firm plate holds the type off the motion. Clear of the buttons keeps the type inside a Reel."
-          : "Download image saves this frame. Download video saves the motion and, when sound is on, speaks the English line. Phone size shows the post at the width of a phone."}
+          : "Play video lets you hear it first. Download image saves this frame. Download video saves the motion, and the voice starts when the English line appears. Phone size shows the post at the width of a phone."}
       </p>
       </div>
     </div>

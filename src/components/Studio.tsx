@@ -510,7 +510,7 @@ export function Studio() {
             <div>
               <h2 className="text-lg text-[var(--ink)]">Download</h2>
               <p className="mt-2 max-w-[62ch] text-sm leading-relaxed text-[var(--soft)]">
-                Download image saves a still. Download video saves the motion with the spoken English line. It is not a recitation.
+                Play video lets you hear it first. Download image saves a still. Download video saves the motion, and the voice starts when the English line appears. It is not a recitation.
               </p>
               <SourceCard piece={draft} />
             </div>
