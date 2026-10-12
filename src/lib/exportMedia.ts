@@ -81,7 +81,7 @@ export async function shareStill(canvas: HTMLCanvasElement, filename: string, te
 export async function shareBlobs(
   items: { blob: Blob; filename: string }[],
   text: string,
-): Promise<ShareResult | "blocked"> {
+): Promise<ShareResult | "blocked" | "gesture"> {
   if (!items.length) return "blocked";
   const files = items.map(
     (item) => new File([item.blob], item.filename, { type: item.blob.type || "image/png" }),
@@ -108,6 +108,7 @@ export async function shareBlobs(
     return "shared";
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") return "cancelled";
+    if (error instanceof DOMException && error.name === "NotAllowedError") return "gesture";
     if (data !== filesOnly) {
       try {
         await navigator.share(filesOnly);

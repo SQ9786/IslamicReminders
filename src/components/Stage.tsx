@@ -141,6 +141,12 @@ export function Stage({
   const [ready, setReady] = useState<{ blob: Blob; filename: string; text: string; ids: string[] } | null>(null);
   const [markIds, setMarkIds] = useState<string[]>([]);
   const [shareNote, setShareNote] = useState("");
+  const instagramReady = useRef<{
+    key: string;
+    files: { blob: Blob; filename: string }[];
+    text: string;
+  } | null>(null);
+  const [instagramArmed, setInstagramArmed] = useState(false);
   const [captionCopied, setCaptionCopied] = useState(false);
   const [error, setError] = useState("");
   const [phone, setPhone] = useState(false);
@@ -529,13 +535,65 @@ export function Stage({
     downloadBlob(zipStore(files), filename);
   }
 
+  async function finishInstagramShare(
+    sequence: Piece[],
+    files: { blob: Blob; filename: string }[],
+    text: string,
+    copied: boolean,
+  ) {
+    const pasted = copied ? "Caption copied." : "Copy the caption from the desk if paste is empty.";
+    const result = await shareBlobs(files, text);
+    if (result === "gesture") {
+      instagramReady.current = {
+        key: sequence.map((item) => item.id).join(","),
+        files,
+        text,
+      };
+      setInstagramArmed(true);
+      setShareNote(`${pasted} Tap Instagram again to open it. Nothing is posted yet.`);
+      return;
+    }
+    instagramReady.current = null;
+    setInstagramArmed(false);
+    if (result === "blocked") {
+      const packed = await Promise.all(
+        files.map(async (file) => ({ name: file.filename, data: new Uint8Array(await file.blob.arrayBuffer()) })),
+      );
+      await packStills(packed, files.length > 1 ? "tadhkeer-instagram.zip" : files[0].filename);
+      setShareNote(
+        files.length > 1
+          ? `Not posted. Saved ${files.length} pictures. ${pasted} This browser cannot open Instagram.`
+          : `Not posted. Saved the picture. ${pasted} This browser cannot open Instagram.`,
+      );
+    } else if (result === "shared") {
+      setMarkIds(postableIds(sequence));
+      setShareNote(
+        files.length > 1
+          ? `${pasted} Choose Instagram and paste it under the carousel.`
+          : `${pasted} Choose Instagram and paste it under the picture.`,
+      );
+    } else if (result === "saved") {
+      setShareNote(`Not posted. Saved the picture. ${pasted}`);
+    } else {
+      setShareNote("");
+    }
+  }
+
   async function postInstagram() {
     if (!canExport || busy) return;
     const sequence = postSequence();
-    const text = batchCaption(sequence, "instagram");
+    const key = sequence.map((item) => item.id).join(",");
+    const ready = instagramReady.current;
     setError("");
     setShareNote("");
     setMode("off");
+    if (ready && ready.key === key) {
+      await finishInstagramShare(sequence, ready.files, ready.text, true);
+      return;
+    }
+    instagramReady.current = null;
+    setInstagramArmed(false);
+    const text = batchCaption(sequence, "instagram");
     pausePaint.current = true;
     setSaving(true);
     try {
@@ -552,30 +610,7 @@ export function Stage({
           filename: `tadhkeer-${String(index + 1).padStart(2, "0")}-${slugName}.png`,
         });
       }
-      const pasted = copied ? "Caption copied." : "Copy the caption from the desk if paste is empty.";
-      const result = await shareBlobs(files, text);
-      if (result === "blocked") {
-        const packed = await Promise.all(
-          files.map(async (file) => ({ name: file.filename, data: new Uint8Array(await file.blob.arrayBuffer()) })),
-        );
-        await packStills(packed, files.length > 1 ? "tadhkeer-instagram.zip" : files[0].filename);
-        setShareNote(
-          files.length > 1
-            ? `Saved ${files.length} pictures. ${pasted} Post them as one Instagram carousel.`
-            : `Saved the picture. ${pasted}`,
-        );
-      } else if (result === "shared") {
-        setMarkIds(postableIds(sequence));
-        setShareNote(
-          files.length > 1
-            ? `${pasted} Choose Instagram and paste it under the carousel.`
-            : `${pasted} Choose Instagram and paste it under the picture.`,
-        );
-      } else if (result === "saved") {
-        setShareNote(`Saved the picture. ${pasted}`);
-      } else {
-        setShareNote("");
-      }
+      await finishInstagramShare(sequence, files, text, copied);
     } catch {
       setError("The Instagram pictures could not be made. Download the image instead.");
     } finally {
@@ -1082,7 +1117,7 @@ export function Stage({
           }
         >
           <InstagramLogo size={18} weight="regular" />
-          {studio ? "Instagram" : "Insta"}
+          {instagramArmed ? "Open Instagram" : studio ? "Instagram" : "Insta"}
         </button>
         <button
           type="button"
