@@ -78,6 +78,50 @@ export async function shareStill(canvas: HTMLCanvasElement, filename: string, te
   return shareFile(blob, filename, text);
 }
 
+export async function shareBlobs(
+  items: { blob: Blob; filename: string }[],
+  text: string,
+): Promise<ShareResult | "blocked" | "gesture"> {
+  if (!items.length) return "blocked";
+  const files = items.map(
+    (item) => new File([item.blob], item.filename, { type: item.blob.type || "image/png" }),
+  );
+  if (typeof navigator.share !== "function") {
+    if (items.length === 1) downloadBlob(items[0].blob, items[0].filename);
+    return items.length === 1 ? "saved" : "blocked";
+  }
+  const withText: ShareData = { files, title: "Tadhkeer", text };
+  const filesOnly: ShareData = { files, title: "Tadhkeer" };
+  let data: ShareData | null = null;
+  try {
+    if (typeof navigator.canShare !== "function" || navigator.canShare(withText)) data = withText;
+    else if (navigator.canShare(filesOnly)) data = filesOnly;
+  } catch {
+    data = null;
+  }
+  if (!data) {
+    if (items.length === 1) downloadBlob(items[0].blob, items[0].filename);
+    return items.length === 1 ? "saved" : "blocked";
+  }
+  try {
+    await navigator.share(data);
+    return "shared";
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") return "cancelled";
+    if (error instanceof DOMException && error.name === "NotAllowedError") return "gesture";
+    if (data !== filesOnly) {
+      try {
+        await navigator.share(filesOnly);
+        return "shared";
+      } catch (again) {
+        if (again instanceof DOMException && again.name === "AbortError") return "cancelled";
+      }
+    }
+    if (items.length === 1) downloadBlob(items[0].blob, items[0].filename);
+    return items.length === 1 ? "saved" : "blocked";
+  }
+}
+
 function crc32(data: Uint8Array) {
   let crc = 0xffffffff;
   for (let i = 0; i < data.length; i++) {

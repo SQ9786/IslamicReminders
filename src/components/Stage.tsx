@@ -11,15 +11,18 @@ import {
   FilmStrip,
   Images,
   ImageSquare,
+  InstagramLogo,
   Pause,
   Play,
   ShareNetwork,
   SpeakerHigh,
   SpeakerSlash,
   Stack,
+  TiktokLogo,
 } from "@phosphor-icons/react";
 import type { Motion } from "../data/backgrounds";
 import { buildCaption, soundSrc } from "../data/library";
+import { batchCaption, type PostPlace } from "../lib/posts";
 import type { Piece, Ratio, Seat, Theme, Voice } from "../types";
 import { drawReminder, ratioSize, type DrawSpec, type Plate } from "../lib/drawReminder";
 import {
@@ -30,6 +33,7 @@ import {
   fileSlug,
   recordReel,
   runLayers,
+  shareBlobs,
   shareFile,
   shareStill,
   zipStore,
@@ -137,6 +141,12 @@ export function Stage({
   const [ready, setReady] = useState<{ blob: Blob; filename: string; text: string; ids: string[] } | null>(null);
   const [markIds, setMarkIds] = useState<string[]>([]);
   const [shareNote, setShareNote] = useState("");
+  const instagramReady = useRef<{
+    key: string;
+    files: { blob: Blob; filename: string }[];
+    text: string;
+  } | null>(null);
+  const [instagramArmed, setInstagramArmed] = useState(false);
   const [captionCopied, setCaptionCopied] = useState(false);
   const [error, setError] = useState("");
   const [phone, setPhone] = useState(false);
@@ -185,33 +195,59 @@ export function Stage({
   function drawFrame(
     t: number,
     item: Piece = piece,
-    options?: { typeFade?: number; pass?: "all" | "ground" | "type" },
+    options?: {
+      typeFade?: number;
+      pass?: "all" | "ground" | "type";
+      ratio?: Ratio;
+      place?: PostPlace;
+      canvas?: HTMLCanvasElement;
+    },
   ) {
-    const canvas = canvasRef.current;
+    const canvas = options?.canvas ?? canvasRef.current;
     if (!canvas) return;
-    const size = ratioSize[ratio];
+    const exportRatio = options?.ratio ?? ratio;
+    const size = ratioSize[exportRatio];
     if (canvas.width !== size.w || canvas.height !== size.h) {
       canvas.width = size.w;
       canvas.height = size.h;
     }
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    drawReminder(ctx, { ...specFor(item), typeFade: options?.typeFade, pass: options?.pass }, t);
+    drawReminder(
+      ctx,
+      {
+        ...specFor(item),
+        ratio: exportRatio,
+        place: options?.place,
+        clear: options?.place ? true : clear,
+        typeFade: options?.typeFade,
+        pass: options?.pass,
+      },
+      t,
+    );
   }
 
   function paint(t: number, item: Piece = piece) {
     drawFrame(t, item);
   }
 
-  function paintRun(t: number, sequence: Piece[]) {
+  function paintRun(
+    t: number,
+    sequence: Piece[],
+    options?: { ratio?: Ratio; place?: PostPlace; canvas?: HTMLCanvasElement },
+  ) {
     const layers = runLayers(t, Math.max(1, sequence.length));
     if (layers.length === 1) {
-      drawFrame(layers[0].local, sequence[layers[0].index] ?? piece, { typeFade: layers[0].fade });
+      drawFrame(layers[0].local, sequence[layers[0].index] ?? piece, { ...options, typeFade: layers[0].fade });
       return layers[0].index;
     }
-    drawFrame(1, sequence[layers[0].index] ?? piece, { pass: "ground" });
+    drawFrame(1, sequence[layers[0].index] ?? piece, { ...options, pass: "ground" });
     for (const layer of layers) {
-      drawFrame(layer.local, sequence[layer.index] ?? piece, { typeFade: layer.fade, pass: "type" });
+      drawFrame(layer.local, sequence[layer.index] ?? piece, {
+        ...options,
+        typeFade: layer.fade,
+        pass: "type",
+      });
     }
     return layers[layers.length - 1].index;
   }
@@ -449,7 +485,7 @@ export function Stage({
       );
       const extension = blob.type.includes("mp4") ? "mp4" : "webm";
       const filename = count > 1 ? `tadhkeer-run.${extension}` : `tadhkeer-${slug}.${extension}`;
-      const text = sequence.map((item) => buildCaption(item)).join("\n\n—\n\n");
+      const text = batchCaption(sequence, "instagram");
       setMarkIds(ids);
       if (canShareFile(blob.type)) {
         setReady({ blob, filename, text, ids });
@@ -479,6 +515,162 @@ export function Stage({
       window.setTimeout(() => setCaptionCopied(false), 1600);
     } catch {
       setShareNote("Clipboard is blocked in this browser. Select the caption and copy it yourself.");
+    }
+  }
+
+  async function copyText(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function postSequence() {
+    return advanced && runnable.length > 1 ? runnable : [piece];
+  }
+
+  async function packStills(files: { name: string; data: Uint8Array }[], filename: string) {
+    downloadBlob(zipStore(files), filename);
+  }
+
+  async function finishInstagramShare(
+    sequence: Piece[],
+    files: { blob: Blob; filename: string }[],
+    text: string,
+    copied: boolean,
+  ) {
+    const pasted = copied ? "Caption copied." : "Copy the caption from the desk if paste is empty.";
+    const result = await shareBlobs(files, text);
+    if (result === "gesture") {
+      instagramReady.current = {
+        key: sequence.map((item) => item.id).join(","),
+        files,
+        text,
+      };
+      setInstagramArmed(true);
+      setShareNote(`${pasted} Tap Instagram again to open it. Nothing is posted yet.`);
+      return;
+    }
+    instagramReady.current = null;
+    setInstagramArmed(false);
+    if (result === "blocked") {
+      const packed = await Promise.all(
+        files.map(async (file) => ({ name: file.filename, data: new Uint8Array(await file.blob.arrayBuffer()) })),
+      );
+      await packStills(packed, files.length > 1 ? "tadhkeer-instagram.zip" : files[0].filename);
+      setShareNote(
+        files.length > 1
+          ? `Not posted. Saved ${files.length} pictures. ${pasted} This browser cannot open Instagram.`
+          : `Not posted. Saved the picture. ${pasted} This browser cannot open Instagram.`,
+      );
+    } else if (result === "shared") {
+      setMarkIds(postableIds(sequence));
+      setShareNote(
+        files.length > 1
+          ? `${pasted} Choose Instagram and paste it under the carousel.`
+          : `${pasted} Choose Instagram and paste it under the picture.`,
+      );
+    } else if (result === "saved") {
+      setShareNote(`Not posted. Saved the picture. ${pasted}`);
+    } else {
+      setShareNote("");
+    }
+  }
+
+  async function postInstagram() {
+    if (!canExport || busy) return;
+    const sequence = postSequence();
+    const key = sequence.map((item) => item.id).join(",");
+    const ready = instagramReady.current;
+    setError("");
+    setShareNote("");
+    setMode("off");
+    if (ready && ready.key === key) {
+      await finishInstagramShare(sequence, ready.files, ready.text, true);
+      return;
+    }
+    instagramReady.current = null;
+    setInstagramArmed(false);
+    const text = batchCaption(sequence, "instagram");
+    pausePaint.current = true;
+    setSaving(true);
+    try {
+      const copied = await copyText(text);
+      const canvas = document.createElement("canvas");
+      const files: { blob: Blob; filename: string }[] = [];
+      for (let index = 0; index < sequence.length; index++) {
+        const item = sequence[index];
+        drawFrame(1, item, { canvas, ratio: "4:5", place: "instagram" });
+        const blob = await canvasPng(canvas);
+        const slugName = fileSlug(item.source || item.english.slice(0, 24));
+        files.push({
+          blob,
+          filename: `tadhkeer-${String(index + 1).padStart(2, "0")}-${slugName}.png`,
+        });
+      }
+      await finishInstagramShare(sequence, files, text, copied);
+    } catch {
+      setError("The Instagram pictures could not be made. Download the image instead.");
+    } finally {
+      pausePaint.current = false;
+      setSaving(false);
+      paint(held ?? 1);
+    }
+  }
+
+  async function postTikTok() {
+    if (!canExport || busy) return;
+    const sequence = postSequence();
+    const text = batchCaption(sequence, "tiktok");
+    setError("");
+    setShareNote("");
+    setReady(null);
+    setHeld(null);
+    setMode("off");
+    pausePaint.current = true;
+    lock.current = true;
+    setRecording(sequence.length > 1 ? "run" : "line");
+    try {
+      const copied = await copyText(text);
+      if (sound) startLine(sequence[0], sequence.length);
+      const graph = soundGraph.current;
+      if (graph?.ctx.state === "suspended") await graph.ctx.resume();
+      const track = sound ? graph?.dest.stream.getAudioTracks()[0] : null;
+      const canvas = document.createElement("canvas");
+      const blob = await recordReel(
+        canvas,
+        (t) => {
+          paintRun(t, sequence, { canvas, ratio: "9:16", place: "tiktok" });
+          followSound(t, sequence);
+        },
+        duration * sequence.length * 1000,
+        track,
+      );
+      const extension = blob.type.includes("mp4") ? "mp4" : "webm";
+      const filename = sequence.length > 1 ? `tadhkeer-tiktok.${extension}` : `tadhkeer-${slug}.${extension}`;
+      const pasted = copied ? "Caption copied." : "Copy the caption from the desk if paste is empty.";
+      const result = await shareBlobs([{ blob, filename }], text);
+      if (result === "shared") {
+        setMarkIds(postableIds(sequence));
+        setShareNote(`${pasted} Choose TikTok and paste it.`);
+      } else if (result === "saved" || result === "blocked") {
+        if (result === "blocked") downloadBlob(blob, filename);
+        setShareNote(`Saved the video. ${pasted} Open it from your camera roll to post on TikTok.`);
+      } else {
+        setShareNote("");
+      }
+    } catch {
+      setError("This browser cannot record a TikTok video. Download the image instead.");
+    } finally {
+      quietSound();
+      pausePaint.current = false;
+      lock.current = false;
+      setRecording("off");
+      setRunAt(-1);
+      paint(held ?? 1);
+      setProgress(1);
     }
   }
 
@@ -914,6 +1106,32 @@ export function Stage({
           <FilmStrip size={18} weight="regular" />
           {recording === "line" ? "Recording…" : studio ? "Download video" : "Video"}
         </MagneticButton>
+        <button
+          type="button"
+          onClick={() => void postInstagram()}
+          disabled={!canExport || busy}
+          className={
+            studio
+              ? "inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-4 py-2 text-sm text-[var(--ink)] transition-colors hover:bg-[var(--wash)] active:scale-[0.98] disabled:opacity-40"
+              : "inline-flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl px-1 py-2 text-xs text-[var(--ink)] disabled:opacity-40"
+          }
+        >
+          <InstagramLogo size={18} weight="regular" />
+          {instagramArmed ? "Open Instagram" : studio ? "Instagram" : "Insta"}
+        </button>
+        <button
+          type="button"
+          onClick={() => void postTikTok()}
+          disabled={!canExport || busy}
+          className={
+            studio
+              ? "inline-flex items-center gap-2 rounded-full border border-[var(--line)] px-4 py-2 text-sm text-[var(--ink)] transition-colors hover:bg-[var(--wash)] active:scale-[0.98] disabled:opacity-40"
+              : "inline-flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl px-1 py-2 text-xs text-[var(--ink)] disabled:opacity-40"
+          }
+        >
+          <TiktokLogo size={18} weight="regular" />
+          TikTok
+        </button>
         {(studio ? advanced : true) && canShare && (
           <button
             type="button"
@@ -1049,8 +1267,8 @@ export function Stage({
       {studio && (
       <p className="text-sm leading-relaxed text-[var(--soft)]">
         {advanced
-          ? "Send opens the share sheet, including Instagram, TikTok, and WhatsApp. The caption is copied so you can paste it. A pinned video fades from one line into the next and speaks each English line. Drag the bar under the frame to hold a moment, then download that image. Firm plate holds the type off the motion. Clear of the buttons keeps the type inside a Reel."
-          : "Play video lets you hear it first. Download image saves this frame. Download video saves the motion, and the voice starts when the English line appears. Phone size shows the post at the width of a phone."}
+          ? "Instagram makes a 4:5 picture, or a carousel when lines are pinned, and copies a caption that opens with the hook. TikTok makes a 9:16 video with the type clear of the side buttons, and copies a short caption. Paste it after the app opens. A pinned video fades from one line into the next."
+          : "Instagram saves a feed picture and copies the caption. TikTok saves a vertical video and copies a shorter caption. Paste it after the app opens."}
       </p>
       )}
       {!studio && !compact && (

@@ -1,3 +1,4 @@
+import { captionFor } from "../lib/posts";
 import type { Kind, Piece, Topic } from "../types";
 
 export const topics: { id: Topic; label: string }[] = [
@@ -372,26 +373,6 @@ export function filterLibrary(
   });
 }
 
-const topicTag: Record<Topic, string> = {
-  mercy: "#rahma",
-  patience: "#sabr",
-  prayer: "#salah",
-  trust: "#tawakkul",
-  character: "#akhlaq",
-  gratitude: "#shukr",
-  hope: "#yaqeen",
-  time: "#deen",
-  speech: "#speech",
-  sincerity: "#niyyah",
-};
-
 export function buildCaption(piece: Piece): string {
-  const body = piece.arabic ? `${piece.arabic}\n\n${piece.english}` : piece.english;
-  const sourceLine =
-    piece.kind === "ayah"
-      ? `Qur'an · ${piece.source}`
-      : piece.kind === "hadith"
-        ? `Hadith · ${piece.source}`
-        : "Reminder";
-  return `${body}\n\n${sourceLine}\n\n#islam #muslim ${topicTag[piece.topic]}`;
+  return captionFor(piece, "instagram");
 }
