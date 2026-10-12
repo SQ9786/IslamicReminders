@@ -18,6 +18,7 @@ import {
 } from "@phosphor-icons/react";
 import type { Kind, Piece, Ratio, Seat, Topic, Voice } from "../types";
 import { buildCaption, filterLibrary, kinds, library, topics } from "../data/library";
+import { batchCaption, captionFor } from "../lib/posts";
 import { motionById } from "../data/backgrounds";
 import { shellVars, themeById } from "../data/themes";
 import { freshDeskId, loadDesk, saveDesk } from "../lib/desk";
@@ -127,6 +128,7 @@ export function Studio() {
   );
   const unpostedCount = library.filter((piece) => !postedIds.includes(piece.id)).length;
   const caption = draft.english.trim() ? buildCaption(draft) : "";
+  const tiktokCaption = draft.english.trim() ? captionFor(draft, "tiktok") : "";
   const runCount = tray.filter((piece) => piece.english.trim()).length;
   const theme = themeById(themeId);
   const ground = motionById(backgroundId);
@@ -362,7 +364,7 @@ export function Studio() {
     const lines = tray.filter((piece) => piece.english.trim());
     if (!lines.length) return;
     try {
-      await navigator.clipboard.writeText(lines.map((piece) => buildCaption(piece)).join("\n\n—\n\n"));
+      await navigator.clipboard.writeText(batchCaption(lines, "instagram"));
       setCopiedRun(true);
       window.setTimeout(() => setCopiedRun(false), 1600);
     } catch {
@@ -719,7 +721,7 @@ export function Studio() {
                     className="inline-flex items-center gap-1.5 text-xs text-[var(--soft)] hover:text-[var(--ink)]"
                   >
                     {copiedRun ? <Check size={14} weight="regular" /> : <Copy size={14} weight="regular" />}
-                    {copiedRun ? "Copied" : "Copy captions"}
+                    {copiedRun ? "Copied" : "Copy post"}
                   </button>
                 )}
                 {tray.length > 0 && (
@@ -1013,6 +1015,11 @@ export function Studio() {
                 <p className="max-w-[48ch] text-sm leading-relaxed whitespace-pre-wrap text-[var(--soft)]">
                   {caption || "The caption appears here."}
                 </p>
+                {tiktokCaption && (
+                  <p className="mt-3 max-w-[48ch] text-sm leading-relaxed whitespace-pre-wrap text-[var(--faint)]">
+                    TikTok · {tiktokCaption}
+                  </p>
+                )}
                 {caption && (
                   <p
                     className={`mt-2 text-xs tabular-nums ${caption.length > 2200 ? "text-[var(--danger)]" : "text-[var(--faint)]"}`}

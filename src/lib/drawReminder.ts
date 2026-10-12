@@ -1,4 +1,5 @@
 import { kickerFor } from "../data/library";
+import type { PostPlace } from "./posts";
 import type { Piece, Ratio, Seat, Theme, Voice } from "../types";
 
 export const ratioSize: Record<Ratio, { w: number; h: number }> = {
@@ -31,13 +32,18 @@ export type DrawSpec = {
   typeFade?: number;
   pass?: "all" | "ground" | "type";
   firm?: boolean;
+  /** Keeps type inside the buttons of that app. */
+  place?: PostPlace;
 };
 
-function textRoom(ratio: Ratio, clear: boolean) {
-  if (!clear) return { top: 0.12, bottom: 0.16, side: 0.105 };
-  if (ratio === "9:16") return { top: 0.2, bottom: 0.24, side: 0.16 };
-  if (ratio === "4:5") return { top: 0.14, bottom: 0.18, side: 0.13 };
-  return { top: 0.13, bottom: 0.16, side: 0.13 };
+function textRoom(ratio: Ratio, clear: boolean, place?: PostPlace) {
+  if (place === "tiktok") return { top: 0.14, bottom: 0.3, left: 0.09, right: 0.22 };
+  if (place === "instagram" && ratio === "9:16") return { top: 0.16, bottom: 0.24, left: 0.11, right: 0.18 };
+  if (place === "instagram") return { top: 0.11, bottom: 0.14, left: 0.1, right: 0.1 };
+  if (!clear) return { top: 0.12, bottom: 0.16, left: 0.105, right: 0.105 };
+  if (ratio === "9:16") return { top: 0.2, bottom: 0.24, left: 0.16, right: 0.16 };
+  if (ratio === "4:5") return { top: 0.14, bottom: 0.18, left: 0.13, right: 0.13 };
+  return { top: 0.13, bottom: 0.16, left: 0.13, right: 0.13 };
 }
 
 function drawCover(
@@ -244,8 +250,9 @@ export function drawReminder(
   const rule = hasPlate && plate ? plate.rule : theme.rule;
 
   const frameMargin = w * 0.105;
-  const room = textRoom(spec.ratio, Boolean(spec.clear));
-  const margin = w * room.side;
+  const room = textRoom(spec.ratio, Boolean(spec.clear), spec.place);
+  const left = w * room.left;
+  const right = w * room.right;
 
   if (pass !== "type") {
   ctx.clearRect(0, 0, w, h);
@@ -324,8 +331,8 @@ export function drawReminder(
   }
   if (pass === "ground" || typeFade <= 0) return;
 
-  const maxWidth = w - margin * 2;
-  const cx = w / 2;
+  const maxWidth = w - left - right;
+  const cx = left + maxWidth / 2;
 
   if (fade(alpha.hook) > 0.01 && piece.hook.trim()) {
     ctx.save();
@@ -452,9 +459,10 @@ export function drawReminder(
   ctx.fillStyle = ink;
   ctx.direction = "ltr";
   ctx.textAlign = "center";
-  const sourceY = spec.clear
-    ? h * (1 - room.bottom) + w * 0.012 - (showMark ? w * 0.04 : 0)
-    : h - frameMargin * 1.15 - (showMark ? w * 0.06 : 0);
+  const sourceY =
+    spec.clear || spec.place
+      ? h * (1 - room.bottom) + w * 0.012 - (showMark ? w * 0.04 : 0)
+      : h - frameMargin * 1.15 - (showMark ? w * 0.06 : 0);
   ctx.strokeStyle = rule;
   ctx.lineWidth = 1.5;
   ctx.globalAlpha = fade(alpha.source * 0.8);
